@@ -1,0 +1,15 @@
+bin/
+*.log
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+examples/
+docs/
+*.md
+!README.md
+

@@ -1,0 +1,71 @@
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+  govet:
+    check-shadowing: true
+  gocyclo:
+    min-complexity: 15
+  misspell:
+    locale: US
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: unexported-return
+        severity: error
+      - name: error-return
+        severity: error
+      - name: error-naming
+        severity: error
+      - name: error-strings
+        severity: error
+      - name: receiver-naming
+        severity: error
+      - name: var-naming
+        severity: error
+      - name: var-declaration
+        severity: error
+      - name: range
+        severity: error
+      - name: increment-decrement
+        severity: error
+      - name: var-naming
+        severity: error
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - goconst
+    - gocritic
+    - gofmt
+    - goimports
+    - revive
+    - misspell
+    - gocyclo
+    - typecheck
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gocyclo
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
