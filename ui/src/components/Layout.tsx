@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Database, 
@@ -25,8 +25,14 @@ const navigation = [
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -82,7 +88,7 @@ export default function Layout() {
           {/* Footer */}
           <div className="px-4 py-4 border-t border-gray-200">
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="w-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
             >
               Logout

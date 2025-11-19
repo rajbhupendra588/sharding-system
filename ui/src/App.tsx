@@ -2,8 +2,10 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import LoadingSpinner from './components/ui/LoadingSpinner';
+import { useAuthStore } from './store/auth-store';
 
 // Lazy load pages for code splitting
+const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Shards = lazy(() => import('./pages/Shards'));
 const ShardDetail = lazy(() => import('./pages/ShardDetail'));
@@ -14,18 +16,33 @@ const Health = lazy(() => import('./pages/Health'));
 const Metrics = lazy(() => import('./pages/Metrics'));
 const Settings = lazy(() => import('./pages/Settings'));
 
+// Protected Route Component
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuthStore();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+}
+
 function App() {
-  // For now, allow access without authentication
-  // In production, add proper auth check here
-  // const { isAuthenticated } = useAuthStore();
-  // if (!isAuthenticated) {
-  //   return <Navigate to="/login" replace />;
-  // }
+  const { isAuthenticated } = useAuthStore();
 
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/login" element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <Login />
+          </Suspense>
+        } />
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route
             path="dashboard"

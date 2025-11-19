@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: manager
+  namespace: sharding-system
+  labels:
+    app: manager
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: manager
+  template:
+    metadata:
+      labels:
+        app: manager
+    spec:
+      containers:
+      - name: manager
+        image: sharding-manager:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8081
+        - name: metrics
+          containerPort: 9091
+        env:
+        - name: CONFIG_PATH
+          value: "/app/configs/manager.json"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: sharding-secrets
+              key: jwt-secret
+        volumeMounts:
+        - name: config
+          mountPath: /app/configs
+          readOnly: true
+        - name: audit-logs
+          mountPath: /var/log/sharding
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: config
+        configMap:
+          name: sharding-config
+      - name: audit-logs
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: manager
+  namespace: sharding-system
+spec:
+  selector:
+    app: manager
+  ports:
+  - name: http
+    port: 8081
+    targetPort: 8081
+  - name: metrics
+    port: 9091
+    targetPort: 9091
+  type: LoadBalancer
+

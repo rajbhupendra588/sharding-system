@@ -29,7 +29,9 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: () => {
         localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth-storage');
         set({ token: null, isAuthenticated: false });
+        // Navigate will be handled by App.tsx ProtectedRoute
       },
     }),
     {

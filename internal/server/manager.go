@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -12,6 +13,7 @@ import (
 	"github.com/sharding-system/pkg/config"
 	"github.com/sharding-system/pkg/health"
 	"github.com/sharding-system/pkg/manager"
+	"github.com/sharding-system/pkg/security"
 	"go.uber.org/zap"
 )
 
@@ -31,15 +33,58 @@ func NewManagerServer(
 ) (*ManagerServer, error) {
 	// Setup HTTP handlers
 	managerHandler := api.NewManagerHandler(shardManager, logger)
+	
+	// Initialize auth manager
+	// JWT_SECRET is required if RBAC is enabled, optional for development
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		if cfg.Security.EnableRBAC {
+			logger.Fatal("JWT_SECRET environment variable is required when RBAC is enabled")
+		}
+		// Development mode - use a default (not secure for production!)
+		jwtSecret = "development-secret-not-for-production-use-min-32-chars"
+		logger.Warn("JWT_SECRET not set - using development secret. Set JWT_SECRET in production!")
+	}
+	if len(jwtSecret) < 32 {
+		logger.Fatal("JWT_SECRET must be at least 32 characters for security")
+	}
+	authManager := security.NewAuthManager(jwtSecret)
+	
+	// Get user database DSN from config or environment
+	userDSN := cfg.Security.UserDatabaseDSN
+	if userDSN == "" {
+		userDSN = os.Getenv("USER_DATABASE_DSN")
+	}
+	
+	authHandler, err := api.NewAuthHandler(authManager, userDSN, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create auth handler: %w", err)
+	}
+	
 	muxRouter := mux.NewRouter()
 
 	// Apply middleware - CORS must be first to ensure headers are set
 	muxRouter.Use(middleware.CORS)
 	muxRouter.Use(middleware.Recovery(logger))
 	muxRouter.Use(middleware.Logging(logger))
+	
+	// Request size limit (10MB default)
+	muxRouter.Use(middleware.RequestSizeLimit(middleware.DefaultMaxRequestSize))
+	
+	// Content-Type validation for POST/PUT/PATCH requests
+	muxRouter.Use(middleware.ContentTypeValidation([]string{"application/json"}))
+	
+	// Enable auth middleware if RBAC is enabled in config
+	if cfg.Security.EnableRBAC {
+		muxRouter.Use(middleware.AuthMiddleware(authManager))
+		logger.Info("RBAC enabled - authentication required for protected endpoints")
+	} else {
+		logger.Warn("RBAC disabled - endpoints are not protected. Enable in production!")
+	}
 
 	// Setup routes
 	api.SetupManagerRoutes(muxRouter, managerHandler)
+	api.SetupAuthRoutes(muxRouter, authHandler)
 
 	// Setup metrics endpoint with CORS support
 	// Prometheus metrics handler wrapped to ensure CORS headers are set
@@ -84,5 +129,10 @@ func (s *ManagerServer) StartAsync() {
 			s.logger.Fatal("manager server failed", zap.Error(err))
 		}
 	}()
+}
+
+// Handler returns the HTTP handler for testing purposes
+func (s *ManagerServer) Handler() http.Handler {
+	return s.server.Handler
 }
 

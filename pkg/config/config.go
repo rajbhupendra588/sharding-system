@@ -58,6 +58,8 @@ type SecurityConfig struct {
 	EnableRBAC     bool   `json:"enable_rbac"`
 	JWTSecret      string `json:"jwt_secret"`
 	AuditLogPath   string `json:"audit_log_path"`
+	// UserDatabaseDSN is the PostgreSQL DSN for user storage (MAANG standard)
+	UserDatabaseDSN string `json:"user_database_dsn"`
 }
 
 // ObservabilityConfig holds observability configuration

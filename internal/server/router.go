@@ -34,6 +34,12 @@ func NewRouterServer(
 	muxRouter.Use(middleware.CORS)
 	muxRouter.Use(middleware.Recovery(logger))
 	muxRouter.Use(middleware.Logging(logger))
+	
+	// Request size limit (10MB default)
+	muxRouter.Use(middleware.RequestSizeLimit(middleware.DefaultMaxRequestSize))
+	
+	// Content-Type validation for POST/PUT/PATCH requests
+	muxRouter.Use(middleware.ContentTypeValidation([]string{"application/json"}))
 
 	// Setup routes
 	api.SetupRouterRoutes(muxRouter, routerHandler)
@@ -80,5 +86,10 @@ func (s *RouterServer) StartAsync() {
 			s.logger.Fatal("router server failed", zap.Error(err))
 		}
 	}()
+}
+
+// Handler returns the HTTP handler for testing purposes
+func (s *RouterServer) Handler() http.Handler {
+	return s.server.Handler
 }
 

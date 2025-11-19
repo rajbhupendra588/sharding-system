@@ -21,7 +21,7 @@
   },
   "security": {
     "enable_tls": false,
-    "enable_rbac": false
+    "enable_rbac": true
   },
   "observability": {
     "metrics_port": 9090,

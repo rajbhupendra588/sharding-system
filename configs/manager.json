@@ -21,8 +21,9 @@
   },
   "security": {
     "enable_tls": false,
-    "enable_rbac": false,
-    "audit_log_path": "/var/log/sharding/audit.log"
+    "enable_rbac": true,
+    "audit_log_path": "/var/log/sharding/audit.log",
+    "user_database_dsn": ""
   },
   "observability": {
     "metrics_port": 9091,
