@@ -4,37 +4,61 @@ A production-ready, self-contained database sharding service that provides trans
 
 ## Architecture
 
+The system architecture separates the **data plane** (request routing) from the **control plane** (configuration and management):
+
+```mermaid
+flowchart TD
+    Start([Start]) --> Init[Initialize]
+    Init --> Client[Client Application<br/>imports client-lib]
+    
+    Client -->|API Request with shard key| Router[Shard Router/Proxy<br/>data plane]
+    
+    Router -->|Hash key| Decision{Hash key<br/>determines shard}
+    Decision -->|Hash key -> Shard 1| Shard1[Shard 1<br/>Primary DB]
+    Decision -->|Hash key -> Shard 2| Shard2[Shard 2<br/>Primary DB]
+    Decision -->|Hash key -> Shard N| ShardN[Shard N<br/>Primary DB]
+    
+    Shard1 -->|Return data| Router
+    Shard2 -->|Return data| Router
+    ShardN -->|Return data| Router
+    
+    Router -->|Return data| Client
+    Client --> Process[Process response]
+    Process --> End([End])
+    
+    ConfigChange{Config changes?} -->|YES: Update shard config| Manager[Shard Manager Service<br/>control plane]
+    ConfigChange -->|NO: Continue normal operation| NormalOp[Normal Operation]
+    
+    Manager -->|Stores shard mappings| Metadata[(Metadata Store<br/>etcd/Postgres)]
+    Manager -->|Monitors & configures| Router
+    Manager -->|Manages replication/failover| Router
+    Manager -->|Manages replication/failover| Shard1
+    Manager -->|Manages replication/failover| Shard2
+    Manager -->|Manages replication/failover| ShardN
+    
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style Client fill:#FFD700
+    style Router fill:#FFD700
+    style Manager fill:#FFD700
+    style Metadata fill:#FFD700
+    style Shard1 fill:#FFD700
+    style Shard2 fill:#FFD700
+    style ShardN fill:#FFD700
+    style Decision fill:#87CEEB
+    style ConfigChange fill:#87CEEB
 ```
-┌─────────────────────┐
-│ Client Microservice │
-│  (uses client-lib)  │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  Shard Router/Proxy │
-│    (data plane)     │
-└──────────┬──────────┘
-           │
-    ┌──────┴──────┬──────────┐
-    ▼             ▼          ▼
-┌─────────┐  ┌─────────┐  ┌─────────┐
-│ Shard 1 │  │ Shard 2 │  │ Shard N │
-│ (DB)    │  │ (DB)    │  │ (DB)    │
-└─────────┘  └─────────┘  └─────────┘
-    │
-    ▼
-┌─────────────────────┐
-│  Shard Manager      │
-│  (control plane)    │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  Metadata Store     │
-│  (etcd/Postgres)    │
-└─────────────────────┘
-```
+
+### Key Components
+
+- **Client Application**: Entry point that uses the client library to send API requests with shard keys
+- **Shard Router/Proxy (Data Plane)**: Routes requests to appropriate shards based on hash key computation
+- **Shard Manager Service (Control Plane)**: Central management component that:
+  - Stores shard mappings in metadata store
+  - Monitors and configures the router
+  - Manages replication and failover for all components
+- **Metadata Store**: Stores critical system metadata (shard mappings, configurations)
+- **Shard Databases**: Individual database instances holding subsets of data
 
 ## Quick Start
 
