@@ -255,18 +255,15 @@ Let's design a dedicated **Sharding Service** that other microservices consult t
 graph TD
     App[E-Commerce App]
     ShardService[Sharding Service]
-    Etcd[Etcd / ZooKeeper (Metadata Store)]
-    
-    subgraph "Data Layer"
-        S1[(Shard 1)]
-        S2[(Shard 2)]
-        S3[(Shard 3)]
-    end
+    Etcd[Etcd Metadata Store]
+    S1[(Shard 1)]
+    S2[(Shard 2)]
+    S3[(Shard 3)]
 
-    App -- "1. Where is User 123?" --> ShardService
-    ShardService -- "Read Map" --> Etcd
-    ShardService -- "Shard 2" --> App
-    App -- "2. SELECT * FROM Users..." --> S2
+    App -->|Where is User 123?| ShardService
+    ShardService -->|Read Map| Etcd
+    ShardService -->|Shard 2| App
+    App -->|SELECT FROM Users| S2
 ```
 
 ### Data Flow
