@@ -58,7 +58,7 @@ export default function Shards() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Shards</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Shards</h1>
         <Button onClick={() => setIsCreateModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Create Shard
@@ -87,7 +87,7 @@ export default function Shards() {
           </div>
         ) : filteredShards.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">No shards found</p>
+            <p className="text-gray-500 dark:text-gray-400">No shards found</p>
           </div>
         ) : (
           <Table>
@@ -107,23 +107,23 @@ export default function Shards() {
                 >
                   <TableCell>
                     <div>
-                      <div className="font-medium text-gray-900">{shard.name}</div>
-                      <div className="text-sm text-gray-500">{shard.id}</div>
+                      <div className="font-medium text-gray-900 dark:text-white">{shard.name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{shard.id}</div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={shard.status} />
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm text-gray-900 max-w-xs truncate">
+                    <div className="text-sm text-gray-900 dark:text-gray-300 max-w-xs truncate">
                       {shard.primary_endpoint}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm text-gray-900">{shard.replicas.length}</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-300">{shard.replicas?.length || 0}</span>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       {formatRelativeTime(shard.created_at)}
                     </div>
                   </TableCell>
@@ -188,7 +188,7 @@ export default function Shards() {
           </>
         }
       >
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           Are you sure you want to delete this shard? This action cannot be undone.
         </p>
       </Modal>
@@ -274,7 +274,7 @@ function CreateShardModal({ isOpen, onClose, onSubmit, isLoading }: CreateShardM
           placeholder="postgres://user:pass@host:5432/db"
         />
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Virtual Node Count
           </label>
           <Input
@@ -286,7 +286,7 @@ function CreateShardModal({ isOpen, onClose, onSubmit, isLoading }: CreateShardM
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Replicas
           </label>
           <div className="flex space-x-2">
@@ -310,9 +310,9 @@ function CreateShardModal({ isOpen, onClose, onSubmit, isLoading }: CreateShardM
               {formData.replicas.map((replica, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded"
+                  className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded"
                 >
-                  <span className="text-sm text-gray-700">{replica}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{replica}</span>
                   <button
                     type="button"
                     onClick={() => removeReplica(index)}

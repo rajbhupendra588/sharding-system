@@ -14,6 +14,11 @@ import (
 	"go.uber.org/zap"
 )
 
+// @title Sharding System Router API
+// @version 1.0
+// @description API for routing requests to shards
+// @host localhost:8080
+// @BasePath /api/v1
 func main() {
 	// Load configuration
 	configPath := os.Getenv("CONFIG_PATH")
@@ -70,4 +75,3 @@ func main() {
 		logger.Error("server shutdown error", zap.Error(err))
 	}
 }
-

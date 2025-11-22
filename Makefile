@@ -53,7 +53,7 @@ start-backend: build-backend ## Start backend services
 	@echo "Starting router on port 8080..."
 	@./bin/router &
 	@echo "Starting manager on port 8081..."
-	@./bin/manager &
+	@JWT_SECRET=this-is-a-very-secure-secret-key-for-jwt-token-generation ./bin/manager &
 	@echo "Backend services started. Use 'make stop-backend' to stop them."
 
 # Start frontend

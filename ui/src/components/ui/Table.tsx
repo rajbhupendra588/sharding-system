@@ -9,7 +9,7 @@ interface TableProps {
 export function Table({ children, className }: TableProps) {
   return (
     <div className="overflow-x-auto">
-      <table className={cn('min-w-full divide-y divide-gray-200', className)}>
+      <table className={cn('min-w-full divide-y divide-gray-200 dark:divide-gray-700', className)}>
         {children}
       </table>
     </div>
@@ -22,7 +22,7 @@ interface TableHeadProps {
 
 export function TableHead({ children }: TableHeadProps) {
   return (
-    <thead className="bg-gray-50">
+    <thead className="bg-gray-50 dark:bg-gray-900/50">
       <tr>{children}</tr>
     </thead>
   );
@@ -37,7 +37,7 @@ export function TableHeader({ children, className }: TableHeaderProps) {
   return (
     <th
       className={cn(
-        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+        'px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider',
         className
       )}
     >
@@ -51,7 +51,7 @@ interface TableBodyProps {
 }
 
 export function TableBody({ children }: TableBodyProps) {
-  return <tbody className="bg-white divide-y divide-gray-200">{children}</tbody>;
+  return <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">{children}</tbody>;
 }
 
 interface TableRowProps {
@@ -64,7 +64,7 @@ export function TableRow({ children, className, onClick }: TableRowProps) {
   return (
     <tr
       className={cn(
-        'hover:bg-gray-50 transition-colors',
+        'hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors',
         onClick && 'cursor-pointer',
         className
       )}
@@ -82,7 +82,7 @@ interface TableCellProps {
 
 export function TableCell({ children, className }: TableCellProps) {
   return (
-    <td className={cn('px-6 py-4 whitespace-nowrap text-sm text-gray-900', className)}>
+    <td className={cn('px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300', className)}>
       {children}
     </td>
   );

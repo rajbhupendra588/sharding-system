@@ -60,7 +60,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
         <div className="flex items-center space-x-4">
           <StatusBadge
             status={isHealthy ? 'healthy' : 'degraded'}
@@ -81,7 +81,7 @@ export default function Dashboard() {
                 <stat.icon className={`h-6 w-6 ${stat.color}`} />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.name}</p>
                 <p className={`text-2xl font-semibold ${stat.color}`}>
                   {stat.value}
                 </p>
@@ -94,7 +94,7 @@ export default function Dashboard() {
       {/* Recent Shards */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Recent Shards</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Recent Shards</h2>
           <Link
             to="/shards"
             className="text-sm font-medium text-primary-600 hover:text-primary-700"
@@ -104,41 +104,41 @@ export default function Dashboard() {
         </div>
         {shards && shards.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-900/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Replicas
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Updated
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {shards.slice(0, 5).map((shard) => (
                   <tr
                     key={shard.id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
                     onClick={() => window.location.href = `/shards/${shard.id}`}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{shard.name}</div>
-                      <div className="text-sm text-gray-500">{shard.id}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{shard.name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{shard.id}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <StatusBadge status={shard.status} />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {shard.replicas.length}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                      {shard.replicas?.length || 0}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {formatRelativeTime(shard.updated_at)}
                     </td>
                   </tr>
@@ -149,8 +149,8 @@ export default function Dashboard() {
         ) : (
           <div className="text-center py-12">
             <Database className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No shards</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new shard.</p>
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No shards</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating a new shard.</p>
             <div className="mt-6">
               <Link
                 to="/shards"
@@ -174,8 +174,8 @@ export default function Dashboard() {
               <Clock className="h-6 w-6 text-primary-600" />
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Execute Query</h3>
-              <p className="text-sm text-gray-500">Run SQL queries against shards</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Execute Query</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Run SQL queries against shards</p>
             </div>
           </div>
         </Link>
@@ -188,8 +188,8 @@ export default function Dashboard() {
               <Activity className="h-6 w-6 text-purple-600" />
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Resharding</h3>
-              <p className="text-sm text-gray-500">Split or merge shards</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Resharding</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Split or merge shards</p>
             </div>
           </div>
         </Link>
@@ -202,8 +202,8 @@ export default function Dashboard() {
               <Activity className="h-6 w-6 text-indigo-600" />
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Metrics</h3>
-              <p className="text-sm text-gray-500">View system metrics</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Metrics</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">View system metrics</p>
             </div>
           </div>
         </Link>

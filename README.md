@@ -36,27 +36,6 @@ A production-ready, self-contained database sharding service that provides trans
 └─────────────────────┘
 ```
 
-## Components
-
-- **Shard Router/Proxy**: Routes requests to appropriate shards based on shard key
-- **Shard Manager**: Control plane API for managing shards, resharding, failover
-- **Metadata Store**: Source of truth for shard mappings and routing rules
-- **Re-sharder**: Handles online data migration for splits/merges
-- **Health Controller**: Monitors shard health and handles failover
-- **Client Library**: Lightweight library for microservices to compute shard IDs
-- **Web UI**: Production-ready management console for visual administration
-
-## Features
-
-- ✅ Consistent hash-based sharding with virtual nodes
-- ✅ Online resharding (split/merge) with minimal downtime
-- ✅ Automatic failover and replica promotion
-- ✅ Connection pooling and read/write routing
-- ✅ Comprehensive metrics and tracing
-- ✅ mTLS security and RBAC
-- ✅ Audit logging for all operations
-- ✅ Health monitoring and alerting
-
 ## Quick Start
 
 ### Prerequisites
@@ -66,49 +45,128 @@ A production-ready, self-contained database sharding service that provides trans
 - etcd (or PostgreSQL for metadata store)
 - Node.js 18+ (for UI)
 
-### Build Backend
-
-```bash
-go mod download
-go build -o bin/shard-router ./cmd/router
-go build -o bin/shard-manager ./cmd/manager
-go build -o bin/resharder ./cmd/resharder
-```
-
 ### Run with Docker Compose
 
 ```bash
 docker-compose up -d
 ```
 
-### Run Web UI
-
-```bash
-cd ui
-npm install
-npm run dev
-```
-
 The UI will be available at `http://localhost:3000`
 
-For detailed setup instructions, see the [Documentation](./docs/README.md).
+## Developer Guide
 
-### Configuration
+### Building the Project
+To build the project, run:
+```bash
+make build
+```
 
-See `configs/` directory for example configurations.
+### Running Locally
+To start the entire system locally using Docker Compose:
+```bash
+make start-all
+```
+This will start the Shard Manager, Router, Etcd, and the UI.
+
+### Running Tests
+To run unit tests:
+```bash
+make test
+```
+
+## Client Usage
+
+### Go Client
+The Go client provides a convenient way to interact with the sharding system.
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/sharding-system/pkg/client"
+)
+
+func main() {
+	// Create a client pointing to the router
+	client := client.NewClient("http://localhost:8080")
+
+	// Get shard for a key
+	shardID, err := client.GetShardForKey("user-123")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Shard ID for 'user-123': %s\n", shardID)
+
+	// Execute a query with strong consistency (reads from primary)
+	result, err := client.QueryStrong(
+		"user-123",
+		"SELECT * FROM users WHERE id = $1",
+		"user-123",
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Query returned %d rows\n", result.RowCount)
+}
+```
+
+### Java Client
+The Java client can be used in your Spring Boot applications.
+
+```java
+@Service
+public class UserService {
+
+    private final ShardingClient shardingClient;
+
+    public UserService(ShardingClient shardingClient) {
+        this.shardingClient = shardingClient;
+    }
+
+    public User getUser(String userId) {
+        // Route request based on userId
+        Shard shard = shardingClient.getShardForKey(userId);
+        
+        // Execute query on the specific shard
+        return shardingClient.executeQuery(
+            shard,
+            "SELECT * FROM users WHERE id = ?",
+            userId
+        );
+    }
+}
+```
+
+## Demo
+
+Watch a quick demo of the Sharding System in action:
+
+### Dashboard
+![Dashboard](demo/dashboard.png)
+
+### Health Status
+![Health](demo/health.png)
+
+### Metrics
+![Metrics](demo/metrics.png)
+
+### Shard Management
+![Shards](demo/shards.png)
+
+### Query Executor
+![Query](demo/query.png)
 
 ## Documentation
 
-All documentation is organized in the [`docs/`](./docs/) directory:
+For detailed setup instructions, API reference, and development guides, please visit the **[Documentation Index](./docs/README.md)**.
 
-- **[Getting Started](./docs/getting-started/QUICKSTART.md)** - Quick start guide
-- **[API Documentation](./docs/api/API.md)** - Complete API reference
-- **[Architecture](./docs/architecture/ARCHITECTURE.md)** - System architecture
-- **[Development Guide](./docs/development/DEVELOPMENT.md)** - Development guidelines
-- **[Client Libraries](./docs/clients/JAVA_QUICKSTART.md)** - Client integration guides
-- **[UI Documentation](./docs/ui/README.md)** - Web UI documentation
-
-See the [Documentation Index](./docs/README.md) for a complete list of all documentation.
+- **[Getting Started](./docs/user/USER_GUIDE.md)**
+- **[Architecture](./docs/architecture/ARCHITECTURE.md)**
+- **[API Reference](./docs/api/API_REFERENCE.md)**
+- **[Development](./docs/dev/DEVELOPER_GUIDE.md)**
 
 ## License
 

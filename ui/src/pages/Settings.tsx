@@ -23,15 +23,15 @@ export default function Settings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Configure application settings and API endpoints
         </p>
       </div>
 
       <div className="card space-y-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">API Configuration</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">API Configuration</h2>
           <div className="space-y-4">
             <Input
               label="Manager API URL (Control Plane)"
@@ -50,8 +50,8 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="border-t pt-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Refresh Settings</h2>
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Refresh Settings</h2>
           <div className="space-y-4">
             <Input
               label="Auto-refresh Interval (ms)"
@@ -64,7 +64,7 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="flex items-center justify-end space-x-2 pt-4 border-t">
+        <div className="flex items-center justify-end space-x-2 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button variant="secondary" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Reset
@@ -76,9 +76,9 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="card bg-yellow-50 border-yellow-200">
-        <h3 className="text-sm font-medium text-yellow-800 mb-2">Note</h3>
-        <p className="text-sm text-yellow-700">
+      <div className="card bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
+        <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">Note</h3>
+        <p className="text-sm text-yellow-700 dark:text-yellow-400">
           Changing these settings will reload the application. Make sure the URLs are correct
           and accessible from your browser.
         </p>

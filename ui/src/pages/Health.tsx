@@ -40,7 +40,7 @@ export default function Health() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Health Status</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Health Status</h1>
         <div className="flex items-center space-x-2">
           <Button variant="secondary" onClick={() => { refetchManager(); refetchRouter(); }}>
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -50,17 +50,17 @@ export default function Health() {
       </div>
 
       {/* System Status */}
-      <div className={`card ${allHealthy ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+      <div className={`card ${allHealthy ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' : 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {allHealthy ? (
-              <CheckCircle className="h-8 w-8 text-green-600" />
+              <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
             ) : (
-              <AlertTriangle className="h-8 w-8 text-yellow-600" />
+              <AlertTriangle className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
             )}
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">System Status</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">System Status</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 {allHealthy ? 'All systems operational' : 'Some systems may be degraded'}
               </p>
             </div>
@@ -74,24 +74,24 @@ export default function Health() {
         {/* Manager Health */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Manager (Control Plane)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Manager (Control Plane)</h2>
             <StatusBadge status={managerHealth?.status || 'unknown'} />
           </div>
           <dl className="space-y-2">
             <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">Status</dt>
-              <dd className="text-sm font-medium text-gray-900">{managerHealth?.status || 'Unknown'}</dd>
+              <dt className="text-sm text-gray-500 dark:text-gray-400">Status</dt>
+              <dd className="text-sm font-medium text-gray-900 dark:text-white">{managerHealth?.status || 'Unknown'}</dd>
             </div>
             {managerHealth?.version && (
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Version</dt>
-                <dd className="text-sm text-gray-900">{managerHealth.version}</dd>
+                <dt className="text-sm text-gray-500 dark:text-gray-400">Version</dt>
+                <dd className="text-sm text-gray-900 dark:text-white">{managerHealth.version}</dd>
               </div>
             )}
             {managerHealth?.uptime_seconds && (
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Uptime</dt>
-                <dd className="text-sm text-gray-900">
+                <dt className="text-sm text-gray-500 dark:text-gray-400">Uptime</dt>
+                <dd className="text-sm text-gray-900 dark:text-white">
                   {formatDuration(managerHealth.uptime_seconds * 1000)}
                 </dd>
               </div>
@@ -102,24 +102,24 @@ export default function Health() {
         {/* Router Health */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Router (Data Plane)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Router (Data Plane)</h2>
             <StatusBadge status={routerHealth?.status || 'unknown'} />
           </div>
           <dl className="space-y-2">
             <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">Status</dt>
-              <dd className="text-sm font-medium text-gray-900">{routerHealth?.status || 'Unknown'}</dd>
+              <dt className="text-sm text-gray-500 dark:text-gray-400">Status</dt>
+              <dd className="text-sm font-medium text-gray-900 dark:text-white">{routerHealth?.status || 'Unknown'}</dd>
             </div>
             {routerHealth?.version && (
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Version</dt>
-                <dd className="text-sm text-gray-900">{routerHealth.version}</dd>
+                <dt className="text-sm text-gray-500 dark:text-gray-400">Version</dt>
+                <dd className="text-sm text-gray-900 dark:text-white">{routerHealth.version}</dd>
               </div>
             )}
             {routerHealth?.uptime_seconds && (
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Uptime</dt>
-                <dd className="text-sm text-gray-900">
+                <dt className="text-sm text-gray-500 dark:text-gray-400">Uptime</dt>
+                <dd className="text-sm text-gray-900 dark:text-white">
                   {formatDuration(routerHealth.uptime_seconds * 1000)}
                 </dd>
               </div>
@@ -131,32 +131,32 @@ export default function Health() {
       {/* Shard Health Summary */}
       {shards && shards.length > 0 && (
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Shard Health Summary</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Shard Health Summary</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-green-50 rounded-lg p-4">
+            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
               <div className="flex items-center space-x-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-medium text-gray-900">Healthy</span>
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <span className="text-sm font-medium text-gray-900 dark:text-white">Healthy</span>
               </div>
-              <p className="text-2xl font-bold text-green-600 mt-2">
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">
                 {shards.filter((s) => s.status === 'active').length}
               </p>
             </div>
-            <div className="bg-yellow-50 rounded-lg p-4">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
               <div className="flex items-center space-x-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                <span className="text-sm font-medium text-gray-900">Degraded</span>
+                <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                <span className="text-sm font-medium text-gray-900 dark:text-white">Degraded</span>
               </div>
-              <p className="text-2xl font-bold text-yellow-600 mt-2">
+              <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">
                 {shards.filter((s) => s.status === 'migrating' || s.status === 'readonly').length}
               </p>
             </div>
-            <div className="bg-red-50 rounded-lg p-4">
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
               <div className="flex items-center space-x-2">
-                <XCircle className="h-5 w-5 text-red-600" />
-                <span className="text-sm font-medium text-gray-900">Unhealthy</span>
+                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <span className="text-sm font-medium text-gray-900 dark:text-white">Unhealthy</span>
               </div>
-              <p className="text-2xl font-bold text-red-600 mt-2">
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">
                 {shards.filter((s) => s.status === 'inactive').length}
               </p>
             </div>

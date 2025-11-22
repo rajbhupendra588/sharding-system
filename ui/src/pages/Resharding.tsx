@@ -51,8 +51,8 @@ export default function Resharding() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Resharding</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Resharding</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Split or merge shards to scale your database
           </p>
         </div>
@@ -76,11 +76,11 @@ export default function Resharding() {
               <GitBranch className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Split Shard</h3>
-              <p className="text-sm text-gray-500">Divide a large shard into multiple smaller shards</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Split Shard</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Divide a large shard into multiple smaller shards</p>
             </div>
           </div>
-          <ul className="space-y-2 text-sm text-gray-600">
+          <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
             <li>• Reduces load on individual shards</li>
             <li>• Enables horizontal scaling</li>
             <li>• Minimal downtime during cutover</li>
@@ -93,11 +93,11 @@ export default function Resharding() {
               <ArrowRight className="h-6 w-6 text-purple-600" />
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Merge Shards</h3>
-              <p className="text-sm text-gray-500">Combine multiple small shards into one</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Merge Shards</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Combine multiple small shards into one</p>
             </div>
           </div>
-          <ul className="space-y-2 text-sm text-gray-600">
+          <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
             <li>• Consolidates resources</li>
             <li>• Reduces operational overhead</li>
             <li>• Optimizes for smaller workloads</li>
@@ -107,8 +107,8 @@ export default function Resharding() {
 
       {/* Active Jobs */}
       <div className="card">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Active Resharding Jobs</h2>
-        <div className="text-center py-12 text-gray-500">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Active Resharding Jobs</h2>
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           <p>Job tracking will be available once jobs are created</p>
           <p className="text-sm mt-1">Start a split or merge operation to see job progress</p>
         </div>
@@ -190,13 +190,13 @@ function SplitShardModal({ isOpen, onClose, onSubmit, isLoading, shards }: Split
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Source Shard
           </label>
           <select
             value={sourceShardId}
             onChange={(e) => setSourceShardId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             required
           >
             <option value="">Select a shard</option>
@@ -210,7 +210,7 @@ function SplitShardModal({ isOpen, onClose, onSubmit, isLoading, shards }: Split
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Target Shards
             </label>
             <Button type="button" size="sm" onClick={addTargetShard}>
@@ -219,9 +219,9 @@ function SplitShardModal({ isOpen, onClose, onSubmit, isLoading, shards }: Split
           </div>
           <div className="space-y-4">
             {targetShards.map((target, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-gray-900">Target Shard {index + 1}</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-white">Target Shard {index + 1}</h4>
                   {targetShards.length > 1 && (
                     <button
                       type="button"
@@ -237,7 +237,7 @@ function SplitShardModal({ isOpen, onClose, onSubmit, isLoading, shards }: Split
                   placeholder="Shard name"
                   value={target.name}
                   onChange={(e) => updateTargetShard(index, 'name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   required
                 />
                 <input
@@ -245,7 +245,7 @@ function SplitShardModal({ isOpen, onClose, onSubmit, isLoading, shards }: Split
                   placeholder="Primary endpoint (postgres://...)"
                   value={target.primary_endpoint}
                   onChange={(e) => updateTargetShard(index, 'primary_endpoint', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-mono text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   required
                 />
                 <input
@@ -253,7 +253,7 @@ function SplitShardModal({ isOpen, onClose, onSubmit, isLoading, shards }: Split
                   placeholder="Virtual node count"
                   value={target.vnode_count}
                   onChange={(e) => updateTargetShard(index, 'vnode_count', parseInt(e.target.value) || 256)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   min={1}
                   max={1024}
                 />
@@ -322,19 +322,19 @@ function MergeShardsModal({ isOpen, onClose, onSubmit, isLoading, shards }: Merg
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Source Shards (select at least 2)
           </label>
-          <div className="border border-gray-200 rounded-lg p-4 max-h-48 overflow-y-auto space-y-2">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-48 overflow-y-auto space-y-2">
             {shards.map((shard) => (
               <label key={shard.id} className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={sourceShardIds.includes(shard.id)}
                   onChange={() => toggleSourceShard(shard.id)}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 bg-white dark:bg-gray-800"
                 />
-                <span className="text-sm text-gray-900">
+                <span className="text-sm text-gray-900 dark:text-gray-300">
                   {shard.name} ({shard.id})
                 </span>
               </label>
@@ -342,15 +342,15 @@ function MergeShardsModal({ isOpen, onClose, onSubmit, isLoading, shards }: Merg
           </div>
         </div>
 
-        <div className="border-t pt-4">
-          <h4 className="font-medium text-gray-900 mb-3">Target Shard Configuration</h4>
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+          <h4 className="font-medium text-gray-900 dark:text-white mb-3">Target Shard Configuration</h4>
           <div className="space-y-3">
             <input
               type="text"
               placeholder="Shard name"
               value={targetShard.name}
               onChange={(e) => setTargetShard({ ...targetShard, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               required
             />
             <input
@@ -358,7 +358,7 @@ function MergeShardsModal({ isOpen, onClose, onSubmit, isLoading, shards }: Merg
               placeholder="Primary endpoint (postgres://...)"
               value={targetShard.primary_endpoint}
               onChange={(e) => setTargetShard({ ...targetShard, primary_endpoint: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-mono text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               required
             />
             <input
@@ -366,7 +366,7 @@ function MergeShardsModal({ isOpen, onClose, onSubmit, isLoading, shards }: Merg
               placeholder="Virtual node count"
               value={targetShard.vnode_count}
               onChange={(e) => setTargetShard({ ...targetShard, vnode_count: parseInt(e.target.value) || 256 })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               min={1}
               max={1024}
             />

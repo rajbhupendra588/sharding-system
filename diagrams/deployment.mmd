@@ -1,0 +1,7 @@
+graph TD
+    subgraph K8s Cluster
+        Ingress[Ingress] --> Service[Service]
+        Service --> Pod1[Pod 1]
+        Service --> Pod2[Pod 2]
+    end
+    Internet --> Ingress

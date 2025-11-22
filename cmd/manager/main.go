@@ -17,6 +17,11 @@ import (
 	"go.uber.org/zap"
 )
 
+// @title Sharding System Manager API
+// @version 1.0
+// @description API for managing shards and cluster state
+// @host localhost:8081
+// @BasePath /api/v1
 func main() {
 	// Load configuration
 	configPath := os.Getenv("CONFIG_PATH")
@@ -52,8 +57,8 @@ func main() {
 	healthController := health.NewController(
 		cat,
 		logger,
-		30*time.Second,  // check interval
-		5*time.Second,   // replication lag threshold
+		30*time.Second, // check interval
+		5*time.Second,  // replication lag threshold
 	)
 
 	// Start health monitoring
@@ -82,4 +87,3 @@ func main() {
 		logger.Error("server shutdown error", zap.Error(err))
 	}
 }
-

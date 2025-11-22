@@ -8,7 +8,9 @@
   },
   "metadata": {
     "type": "etcd",
-    "endpoints": ["localhost:2379"],
+    "endpoints": [
+      "localhost:2389"
+    ],
     "timeout": "5s"
   },
   "sharding": {
@@ -29,4 +31,3 @@
     "log_level": "info"
   }
 }
-

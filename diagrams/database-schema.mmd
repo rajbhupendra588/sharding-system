@@ -1,0 +1,11 @@
+erDiagram
+    SHARD {
+        int id
+        string status
+        string address
+    }
+    METADATA {
+        string key
+        int shard_id
+    }
+    SHARD ||--o{ METADATA : contains

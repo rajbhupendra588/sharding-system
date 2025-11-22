@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-router
+  labels:
+    app: {{ .Release.Name }}-router
+spec:
+  replicas: {{ .Values.router.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-router
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-router
+    spec:
+      containers:
+        - name: router
+          image: "{{ .Values.router.image.repository }}:{{ .Values.router.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.router.service.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+          resources:
+            {{- toYaml .Values.router.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-config

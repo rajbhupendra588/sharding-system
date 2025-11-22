@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant Client
+    participant Router
+    participant Manager
+    participant Shard
+
+    Client->>Router: Get Data
+    Router->>Manager: Get Shard ID
+    Manager-->>Router: Shard ID
+    Router->>Shard: Forward Request
+    Shard-->>Router: Data
+    Router-->>Client: Data

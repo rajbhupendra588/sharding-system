@@ -1,0 +1,48 @@
+# Default values for sharding-system.
+
+image:
+  repository: sharding-system
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+manager:
+  replicaCount: 1
+  image:
+    repository: sharding-system-manager
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 8081
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+router:
+  replicaCount: 2
+  image:
+    repository: sharding-system-router
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+etcd:
+  endpoints: ["etcd:2379"]
+
+config:
+  sharding:
+    vnodeCount: 256
+    replicaPolicy: "replica_ok"
+  security:
+    enableRBAC: true

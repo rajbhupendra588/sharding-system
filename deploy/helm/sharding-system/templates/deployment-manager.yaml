@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-manager
+  labels:
+    app: {{ .Release.Name }}-manager
+spec:
+  replicas: {{ .Values.manager.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-manager
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-manager
+    spec:
+      containers:
+        - name: manager
+          image: "{{ .Values.manager.image.repository }}:{{ .Values.manager.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.manager.service.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+          resources:
+            {{- toYaml .Values.manager.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-config

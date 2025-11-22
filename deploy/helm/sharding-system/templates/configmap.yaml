@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  manager.json: |
+    {
+      "server": {
+        "host": "0.0.0.0",
+        "port": {{ .Values.manager.service.port }},
+        "read_timeout": "30s",
+        "write_timeout": "30s",
+        "idle_timeout": "120s"
+      },
+      "metadata": {
+        "type": "etcd",
+        "endpoints": {{ toJson .Values.etcd.endpoints }},
+        "timeout": "5s"
+      },
+      "sharding": {
+        "strategy": "hash",
+        "hash_function": "murmur3",
+        "vnode_count": {{ .Values.config.sharding.vnodeCount }},
+        "replica_policy": "{{ .Values.config.sharding.replicaPolicy }}",
+        "max_connections": 100,
+        "connection_ttl": "5m"
+      },
+      "security": {
+        "enable_tls": false,
+        "enable_rbac": {{ .Values.config.security.enableRBAC }},
+        "audit_log_path": "/var/log/sharding/audit.log",
+        "user_database_dsn": ""
+      },
+      "observability": {
+        "metrics_port": 9091,
+        "enable_tracing": false,
+        "log_level": "info"
+      }
+    }
+  router.json: |
+    {
+      "server": {
+        "host": "0.0.0.0",
+        "port": {{ .Values.router.service.port }},
+        "read_timeout": "30s",
+        "write_timeout": "30s",
+        "idle_timeout": "120s"
+      },
+      "metadata": {
+        "type": "etcd",
+        "endpoints": {{ toJson .Values.etcd.endpoints }},
+        "timeout": "5s"
+      },
+      "sharding": {
+        "strategy": "hash",
+        "hash_function": "murmur3",
+        "vnode_count": {{ .Values.config.sharding.vnodeCount }},
+        "replica_policy": "{{ .Values.config.sharding.replicaPolicy }}",
+        "max_connections": 100,
+        "connection_ttl": "5m"
+      },
+      "security": {
+        "enable_tls": false,
+        "enable_rbac": {{ .Values.config.security.enableRBAC }},
+        "audit_log_path": "/var/log/sharding/audit.log",
+        "user_database_dsn": ""
+      },
+      "observability": {
+        "metrics_port": 9092,
+        "enable_tracing": false,
+        "log_level": "info"
+      }
+    }

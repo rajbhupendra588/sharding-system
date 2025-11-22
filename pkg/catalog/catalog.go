@@ -27,13 +27,13 @@ type Catalog interface {
 
 // EtcdCatalog implements Catalog using etcd
 type EtcdCatalog struct {
-	client     *clientv3.Client
-	logger     *zap.Logger
-	hashRing   *ConsistentHashRing
-	mu         sync.RWMutex
-	cache      map[string]*models.Shard
-	version    int64
-	watchChan  chan *models.ShardCatalog
+	client    *clientv3.Client
+	logger    *zap.Logger
+	hashRing  *ConsistentHashRing
+	mu        sync.RWMutex
+	cache     map[string]*models.Shard
+	version   int64
+	watchChan chan *models.ShardCatalog
 }
 
 // ConsistentHashRing wraps the hashing logic with catalog integration
@@ -63,7 +63,7 @@ func NewEtcdCatalog(endpoints []string, logger *zap.Logger) (*EtcdCatalog, error
 
 	// Load initial catalog
 	if err := catalog.loadCatalog(); err != nil {
-		logger.Warn("failed to load initial catalog", zap.Error(err))
+		return nil, fmt.Errorf("failed to load initial catalog: %w", err)
 	}
 
 	return catalog, nil
@@ -130,7 +130,7 @@ func (c *EtcdCatalog) CreateShard(shard *models.Shard) error {
 	}
 
 	key := fmt.Sprintf("/shards/%s", shard.ID)
-	
+
 	// Use transaction to ensure atomicity
 	txn := c.client.Txn(ctx)
 	txn.If(clientv3.Compare(clientv3.Version(key), "=", 0)).
@@ -220,7 +220,7 @@ func (c *EtcdCatalog) Watch(ctx context.Context) (<-chan *models.ShardCatalog, e
 
 	go func() {
 		defer close(watchChan)
-		
+
 		watchResp := c.client.Watch(ctx, "/shards/", clientv3.WithPrefix())
 		for watchResp := range watchResp {
 			for _, ev := range watchResp.Events {
@@ -311,4 +311,3 @@ func (r *ConsistentHashRing) removeShard(shardID string) {
 	}
 	delete(r.shards, shardID)
 }
-

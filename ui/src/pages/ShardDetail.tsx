@@ -81,8 +81,8 @@ export default function ShardDetail() {
             Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">{shard.name}</h1>
-            <p className="text-sm text-gray-500 mt-1">{shard.id}</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{shard.name}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{shard.id}</p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
@@ -101,35 +101,35 @@ export default function ShardDetail() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Basic Information */}
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h2>
           <dl className="space-y-3">
             <div>
-              <dt className="text-sm font-medium text-gray-500">Status</dt>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
               <dd className="mt-1">
                 <StatusBadge status={shard.status} />
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Created</dt>
-              <dd className="mt-1 text-sm text-gray-900">{formatDate(shard.created_at)}</dd>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created</dt>
+              <dd className="mt-1 text-sm text-gray-900 dark:text-gray-300">{formatDate(shard.created_at)}</dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
-              <dd className="mt-1 text-sm text-gray-900">{formatRelativeTime(shard.updated_at)}</dd>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</dt>
+              <dd className="mt-1 text-sm text-gray-900 dark:text-gray-300">{formatRelativeTime(shard.updated_at)}</dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Version</dt>
-              <dd className="mt-1 text-sm text-gray-900">{shard.version}</dd>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Version</dt>
+              <dd className="mt-1 text-sm text-gray-900 dark:text-gray-300">{shard.version}</dd>
             </div>
             {shard.hash_range_start !== undefined && shard.hash_range_end !== undefined && (
               <>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Hash Range Start</dt>
-                  <dd className="mt-1 text-sm text-gray-900 font-mono">{shard.hash_range_start}</dd>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Hash Range Start</dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-gray-300 font-mono">{shard.hash_range_start}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Hash Range End</dt>
-                  <dd className="mt-1 text-sm text-gray-900 font-mono">{shard.hash_range_end}</dd>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Hash Range End</dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-gray-300 font-mono">{shard.hash_range_end}</dd>
                 </div>
               </>
             )}
@@ -138,26 +138,26 @@ export default function ShardDetail() {
 
         {/* Endpoints */}
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Endpoints</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Endpoints</h2>
           <div className="space-y-4">
             <div>
-              <dt className="text-sm font-medium text-gray-500 mb-2">Primary Endpoint</dt>
-              <dd className="text-sm text-gray-900 font-mono bg-gray-50 p-2 rounded break-all">
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Primary Endpoint</dt>
+              <dd className="text-sm text-gray-900 dark:text-gray-300 font-mono bg-gray-50 dark:bg-gray-800 p-2 rounded break-all">
                 {shard.primary_endpoint}
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500 mb-2">
-                Replicas ({shard.replicas.length})
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                Replicas ({shard.replicas?.length || 0})
               </dt>
-              {shard.replicas.length > 0 ? (
+              {shard.replicas?.length > 0 ? (
                 <div className="space-y-2">
                   {shard.replicas.map((replica, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between bg-gray-50 p-2 rounded"
+                      className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded"
                     >
-                      <span className="text-sm text-gray-900 font-mono break-all flex-1">
+                      <span className="text-sm text-gray-900 dark:text-gray-300 font-mono break-all flex-1">
                         {replica}
                       </span>
                       <Button
@@ -174,7 +174,7 @@ export default function ShardDetail() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">No replicas configured</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">No replicas configured</p>
               )}
             </div>
           </div>
@@ -183,21 +183,21 @@ export default function ShardDetail() {
         {/* Virtual Nodes */}
         {shard.vnodes && shard.vnodes.length > 0 && (
           <div className="card lg:col-span-2">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Virtual Nodes ({shard.vnodes.length})
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {shard.vnodes.slice(0, 20).map((vnode) => (
                 <div
                   key={vnode.id}
-                  className="bg-gray-50 p-2 rounded text-sm font-mono"
+                  className="bg-gray-50 dark:bg-gray-800 p-2 rounded text-sm font-mono"
                 >
-                  <div className="text-gray-600">ID: {vnode.id}</div>
-                  <div className="text-gray-900">Hash: {vnode.hash}</div>
+                  <div className="text-gray-600 dark:text-gray-400">ID: {vnode.id}</div>
+                  <div className="text-gray-900 dark:text-gray-300">Hash: {vnode.hash}</div>
                 </div>
               ))}
               {shard.vnodes.length > 20 && (
-                <div className="bg-gray-50 p-2 rounded text-sm text-gray-600 flex items-center justify-center">
+                <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded text-sm text-gray-600 dark:text-gray-400 flex items-center justify-center">
                   +{shard.vnodes.length - 20} more
                 </div>
               )}
@@ -238,7 +238,7 @@ export default function ShardDetail() {
         }
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
             Are you sure you want to promote this replica to primary? This will update the shard configuration.
           </p>
           <Input
@@ -271,7 +271,7 @@ export default function ShardDetail() {
           </>
         }
       >
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           Are you sure you want to delete shard <strong>{shard.name}</strong>? This action cannot be undone.
         </p>
       </Modal>

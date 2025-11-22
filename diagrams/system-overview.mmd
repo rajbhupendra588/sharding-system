@@ -1,0 +1,8 @@
+graph TD
+    Client[Client] --> Router[Router]
+    Router --> Manager[Manager]
+    Router --> Shard1[Shard 1]
+    Router --> Shard2[Shard 2]
+    Manager --> Etcd[Etcd]
+    Shard1 --> DB1[(Database 1)]
+    Shard2 --> DB2[(Database 2)]
