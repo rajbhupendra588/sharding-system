@@ -194,5 +194,7 @@ For detailed setup instructions, API reference, and development guides, please v
 
 ## License
 
-MIT
+Apache 2.0
+
+See [Cost and License Info](./docs/customer/COST_AND_LICENSE_INFO.md) for details.
 
