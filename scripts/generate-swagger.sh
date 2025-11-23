@@ -17,11 +17,11 @@ export PATH=$PATH:$(go env GOPATH)/bin
 
 # Generate Router API docs
 echo "Generating Router API documentation..."
-swag init -g cmd/router/main.go -o docs/swagger/router --parseDependency --parseInternal
+swag init -g cmd/router/main.go -o docs/swagger/router --parseDependency --parseInternal --instanceName router
 
 # Generate Manager API docs
 echo "Generating Manager API documentation..."
-swag init -g cmd/manager/main.go -o docs/swagger/manager --parseDependency --parseInternal
+swag init -g cmd/manager/main.go -o docs/swagger/manager --parseDependency --parseInternal --instanceName manager
 
 echo "Swagger documentation generated successfully!"
 echo ""

@@ -8,21 +8,21 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	managerSwagger "github.com/sharding-system/docs/swagger/manager"
 	"github.com/sharding-system/internal/api"
 	"github.com/sharding-system/internal/middleware"
 	"github.com/sharding-system/pkg/config"
 	"github.com/sharding-system/pkg/health"
 	"github.com/sharding-system/pkg/manager"
 	"github.com/sharding-system/pkg/security"
-	managerSwagger "github.com/sharding-system/docs/swagger/manager"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 )
 
 // ManagerServer represents the manager HTTP server
 type ManagerServer struct {
-	server          *http.Server
-	logger          *zap.Logger
+	server           *http.Server
+	logger           *zap.Logger
 	healthController *health.Controller
 }
 
@@ -35,7 +35,7 @@ func NewManagerServer(
 ) (*ManagerServer, error) {
 	// Setup HTTP handlers
 	managerHandler := api.NewManagerHandler(shardManager, logger)
-	
+
 	// Initialize auth manager
 	// JWT_SECRET is required if RBAC is enabled, optional for development
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -51,31 +51,31 @@ func NewManagerServer(
 		logger.Fatal("JWT_SECRET must be at least 32 characters for security")
 	}
 	authManager := security.NewAuthManager(jwtSecret)
-	
+
 	// Get user database DSN from config or environment
 	userDSN := cfg.Security.UserDatabaseDSN
 	if userDSN == "" {
 		userDSN = os.Getenv("USER_DATABASE_DSN")
 	}
-	
+
 	authHandler, err := api.NewAuthHandler(authManager, userDSN, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create auth handler: %w", err)
 	}
-	
+
 	muxRouter := mux.NewRouter()
 
 	// Apply middleware - CORS must be first to ensure headers are set
 	muxRouter.Use(middleware.CORS)
 	muxRouter.Use(middleware.Recovery(logger))
 	muxRouter.Use(middleware.Logging(logger))
-	
+
 	// Request size limit (10MB default)
 	muxRouter.Use(middleware.RequestSizeLimit(middleware.DefaultMaxRequestSize))
-	
+
 	// Content-Type validation for POST/PUT/PATCH requests
 	muxRouter.Use(middleware.ContentTypeValidation([]string{"application/json"}))
-	
+
 	// Enable auth middleware if RBAC is enabled in config
 	if cfg.Security.EnableRBAC {
 		muxRouter.Use(middleware.AuthMiddleware(authManager))
@@ -92,10 +92,10 @@ func NewManagerServer(
 	muxRouter.HandleFunc("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		doc := managerSwagger.SwaggerInfo.ReadDoc()
+		doc := managerSwagger.SwaggerInfomanager.ReadDoc()
 		w.Write([]byte(doc))
 	}).Methods("GET", "OPTIONS")
-	
+
 	muxRouter.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 		httpSwagger.URL("http://localhost:8081/swagger/doc.json"), // The url pointing to API definition
 		httpSwagger.DeepLinking(true),
@@ -152,4 +152,3 @@ func (s *ManagerServer) StartAsync() {
 func (s *ManagerServer) Handler() http.Handler {
 	return s.server.Handler
 }
-

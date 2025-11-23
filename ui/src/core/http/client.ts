@@ -59,9 +59,21 @@ export class HttpClient {
   private handleError(error: AxiosError): ApiError {
     if (error.response) {
       // Server responded with error status
+      let message: string;
+
+      // Handle both JSON and plain text error responses
+      if (typeof error.response.data === 'string') {
+        message = error.response.data;
+      } else if (error.response.data && typeof error.response.data === 'object') {
+        message = (error.response.data as { message?: string; error?: { message?: string } })?.message
+          || (error.response.data as { error?: { message?: string } })?.error?.message
+          || error.message;
+      } else {
+        message = error.message;
+      }
+
       return {
-        message:
-          (error.response.data as { message?: string })?.message || error.message,
+        message,
         code: error.response.status.toString(),
         details: error.response.data,
       };

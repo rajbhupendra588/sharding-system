@@ -19,11 +19,18 @@ func AuthMiddleware(authManager *security.AuthManager) func(http.Handler) http.H
 				"/api/v1/health",
 				"/metrics",
 				"/api/v1/auth/login",
+				"/swagger/",
 			}
 
 			path := r.URL.Path
 			for _, publicPath := range publicPaths {
-				if path == publicPath || strings.HasPrefix(path, publicPath+"/") {
+				// Handle paths that already end with /
+				if strings.HasSuffix(publicPath, "/") {
+					if strings.HasPrefix(path, publicPath) {
+						next.ServeHTTP(w, r)
+						return
+					}
+				} else if path == publicPath || strings.HasPrefix(path, publicPath+"/") {
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -62,4 +69,3 @@ func AuthMiddleware(authManager *security.AuthManager) func(http.Handler) http.H
 		})
 	}
 }
-

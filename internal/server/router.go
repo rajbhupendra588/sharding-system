@@ -7,11 +7,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	routerSwagger "github.com/sharding-system/docs/swagger/router"
 	"github.com/sharding-system/internal/api"
 	"github.com/sharding-system/internal/middleware"
 	"github.com/sharding-system/pkg/config"
 	"github.com/sharding-system/pkg/router"
-	routerSwagger "github.com/sharding-system/docs/swagger/router"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 )
@@ -36,10 +36,10 @@ func NewRouterServer(
 	muxRouter.Use(middleware.CORS)
 	muxRouter.Use(middleware.Recovery(logger))
 	muxRouter.Use(middleware.Logging(logger))
-	
+
 	// Request size limit (10MB default)
 	muxRouter.Use(middleware.RequestSizeLimit(middleware.DefaultMaxRequestSize))
-	
+
 	// Content-Type validation for POST/PUT/PATCH requests
 	muxRouter.Use(middleware.ContentTypeValidation([]string{"application/json"}))
 
@@ -50,10 +50,10 @@ func NewRouterServer(
 	muxRouter.HandleFunc("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		doc := routerSwagger.SwaggerInfo.ReadDoc()
+		doc := routerSwagger.SwaggerInforouter.ReadDoc()
 		w.Write([]byte(doc))
 	}).Methods("GET", "OPTIONS")
-	
+
 	muxRouter.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 		httpSwagger.URL("http://localhost:8080/swagger/doc.json"), // The url pointing to API definition
 		httpSwagger.DeepLinking(true),
@@ -109,4 +109,3 @@ func (s *RouterServer) StartAsync() {
 func (s *RouterServer) Handler() http.Handler {
 	return s.server.Handler
 }
-
