@@ -5,6 +5,8 @@ bin/
 *.dll
 *.so
 *.dylib
+manager
+router
 
 # Test binary, built with `go test -c`
 *.test

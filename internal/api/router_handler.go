@@ -11,6 +11,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// @title Sharding System Router API
+// @version 1.0
+// @description API for routing requests to shards based on shard keys
+// @termsOfService http://swagger.io/terms/
+// @contact.name API Support
+// @contact.email support@sharding-system.com
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+// @host localhost:8080
+// @BasePath /v1
+
 // RouterHandler handles HTTP requests for the router
 type RouterHandler struct {
 	router *router.Router
@@ -26,6 +37,16 @@ func NewRouterHandler(r *router.Router, logger *zap.Logger) *RouterHandler {
 }
 
 // ExecuteQuery handles query execution requests
+// @Summary Execute a query on a shard
+// @Description Executes a SQL query on the shard determined by the shard key
+// @Tags router
+// @Accept json
+// @Produce json
+// @Param request body models.QueryRequest true "Query Request"
+// @Success 200 {object} models.QueryResponse "Query executed successfully"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /execute [post]
 func (h *RouterHandler) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 	var req models.QueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -61,6 +82,16 @@ func (h *RouterHandler) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetShardForKey handles shard lookup requests
+// @Summary Get shard ID for a key
+// @Description Returns the shard ID that handles the given key
+// @Tags router
+// @Accept json
+// @Produce json
+// @Param key query string true "Shard key"
+// @Success 200 {object} map[string]string "Shard ID"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /shard-for-key [get]
 func (h *RouterHandler) GetShardForKey(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Query().Get("key")
 	if key == "" {

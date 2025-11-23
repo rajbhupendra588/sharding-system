@@ -10,6 +10,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// @title Sharding System Manager API
+// @version 1.0
+// @description API for managing shards and cluster state
+// @termsOfService http://swagger.io/terms/
+// @contact.name API Support
+// @contact.email support@sharding-system.com
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+// @host localhost:8081
+// @BasePath /api/v1
+
 // ManagerHandler handles HTTP requests for the manager
 type ManagerHandler struct {
 	manager *manager.Manager
@@ -25,6 +36,16 @@ func NewManagerHandler(m *manager.Manager, logger *zap.Logger) *ManagerHandler {
 }
 
 // CreateShard handles shard creation requests
+// @Summary Create a new shard
+// @Description Creates a new database shard with the specified configuration
+// @Tags shards
+// @Accept json
+// @Produce json
+// @Param request body models.CreateShardRequest true "Shard Configuration"
+// @Success 201 {object} models.Shard "Shard created successfully"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /shards [post]
 func (h *ManagerHandler) CreateShard(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateShardRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -45,6 +66,15 @@ func (h *ManagerHandler) CreateShard(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetShard handles shard retrieval requests
+// @Summary Get shard by ID
+// @Description Retrieves shard information by shard ID
+// @Tags shards
+// @Accept json
+// @Produce json
+// @Param id path string true "Shard ID"
+// @Success 200 {object} models.Shard "Shard information"
+// @Failure 404 {object} map[string]interface{} "Shard not found"
+// @Router /shards/{id} [get]
 func (h *ManagerHandler) GetShard(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	shardID := vars["id"]
@@ -60,6 +90,14 @@ func (h *ManagerHandler) GetShard(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListShards handles shard listing requests
+// @Summary List all shards
+// @Description Returns a list of all shards in the system
+// @Tags shards
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.Shard "List of shards"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /shards [get]
 func (h *ManagerHandler) ListShards(w http.ResponseWriter, r *http.Request) {
 	shards, err := h.manager.ListShards()
 	if err != nil {
@@ -73,6 +111,15 @@ func (h *ManagerHandler) ListShards(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteShard handles shard deletion requests
+// @Summary Delete a shard
+// @Description Deletes a shard by ID
+// @Tags shards
+// @Accept json
+// @Produce json
+// @Param id path string true "Shard ID"
+// @Success 204 "Shard deleted successfully"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Router /shards/{id} [delete]
 func (h *ManagerHandler) DeleteShard(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	shardID := vars["id"]
@@ -86,6 +133,16 @@ func (h *ManagerHandler) DeleteShard(w http.ResponseWriter, r *http.Request) {
 }
 
 // SplitShard handles split operation requests
+// @Summary Split a shard
+// @Description Splits a shard into multiple target shards
+// @Tags resharding
+// @Accept json
+// @Produce json
+// @Param request body models.SplitRequest true "Split Request"
+// @Success 202 {object} models.ReshardJob "Split job started"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /reshard/split [post]
 func (h *ManagerHandler) SplitShard(w http.ResponseWriter, r *http.Request) {
 	var req models.SplitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -106,6 +163,16 @@ func (h *ManagerHandler) SplitShard(w http.ResponseWriter, r *http.Request) {
 }
 
 // MergeShards handles merge operation requests
+// @Summary Merge shards
+// @Description Merges multiple source shards into a target shard
+// @Tags resharding
+// @Accept json
+// @Produce json
+// @Param request body models.MergeRequest true "Merge Request"
+// @Success 202 {object} models.ReshardJob "Merge job started"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /reshard/merge [post]
 func (h *ManagerHandler) MergeShards(w http.ResponseWriter, r *http.Request) {
 	var req models.MergeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -126,6 +193,15 @@ func (h *ManagerHandler) MergeShards(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetReshardJob handles reshard job status requests
+// @Summary Get reshard job status
+// @Description Retrieves the status of a resharding job by job ID
+// @Tags resharding
+// @Accept json
+// @Produce json
+// @Param id path string true "Job ID"
+// @Success 200 {object} models.ReshardJob "Job status"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Router /reshard/jobs/{id} [get]
 func (h *ManagerHandler) GetReshardJob(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	jobID := vars["id"]
@@ -141,6 +217,16 @@ func (h *ManagerHandler) GetReshardJob(w http.ResponseWriter, r *http.Request) {
 }
 
 // PromoteReplica handles replica promotion requests
+// @Summary Promote a replica to primary
+// @Description Promotes a replica to become the primary shard
+// @Tags shards
+// @Accept json
+// @Produce json
+// @Param id path string true "Shard ID"
+// @Param request body object true "Replica Promotion Request" example({"replica_endpoint": "postgresql://replica:5432/db"})
+// @Success 200 {object} map[string]string "Replica promoted successfully"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Router /shards/{id}/promote [post]
 func (h *ManagerHandler) PromoteReplica(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	shardID := vars["id"]

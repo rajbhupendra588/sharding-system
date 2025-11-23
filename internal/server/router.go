@@ -11,6 +11,8 @@ import (
 	"github.com/sharding-system/internal/middleware"
 	"github.com/sharding-system/pkg/config"
 	"github.com/sharding-system/pkg/router"
+	routerSwagger "github.com/sharding-system/docs/swagger/router"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 )
 
@@ -43,6 +45,21 @@ func NewRouterServer(
 
 	// Setup routes
 	api.SetupRouterRoutes(muxRouter, routerHandler)
+
+	// Setup Swagger documentation
+	muxRouter.HandleFunc("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		doc := routerSwagger.SwaggerInfo.ReadDoc()
+		w.Write([]byte(doc))
+	}).Methods("GET", "OPTIONS")
+	
+	muxRouter.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("http://localhost:8080/swagger/doc.json"), // The url pointing to API definition
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+		httpSwagger.DomID("swagger-ui"),
+	)).Methods("GET", "OPTIONS")
 
 	// Setup metrics endpoint with CORS support
 	// Prometheus metrics handler wrapped to ensure CORS headers are set

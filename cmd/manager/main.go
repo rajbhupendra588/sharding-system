@@ -20,6 +20,11 @@ import (
 // @title Sharding System Manager API
 // @version 1.0
 // @description API for managing shards and cluster state
+// @termsOfService http://swagger.io/terms/
+// @contact.name API Support
+// @contact.email support@sharding-system.com
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
 // @host localhost:8081
 // @BasePath /api/v1
 func main() {

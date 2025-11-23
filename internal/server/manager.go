@@ -14,6 +14,8 @@ import (
 	"github.com/sharding-system/pkg/health"
 	"github.com/sharding-system/pkg/manager"
 	"github.com/sharding-system/pkg/security"
+	managerSwagger "github.com/sharding-system/docs/swagger/manager"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 )
 
@@ -85,6 +87,21 @@ func NewManagerServer(
 	// Setup routes
 	api.SetupManagerRoutes(muxRouter, managerHandler)
 	api.SetupAuthRoutes(muxRouter, authHandler)
+
+	// Setup Swagger documentation
+	muxRouter.HandleFunc("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		doc := managerSwagger.SwaggerInfo.ReadDoc()
+		w.Write([]byte(doc))
+	}).Methods("GET", "OPTIONS")
+	
+	muxRouter.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("http://localhost:8081/swagger/doc.json"), // The url pointing to API definition
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+		httpSwagger.DomID("swagger-ui"),
+	)).Methods("GET", "OPTIONS")
 
 	// Setup metrics endpoint with CORS support
 	// Prometheus metrics handler wrapped to ensure CORS headers are set

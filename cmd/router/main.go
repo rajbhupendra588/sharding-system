@@ -16,9 +16,14 @@ import (
 
 // @title Sharding System Router API
 // @version 1.0
-// @description API for routing requests to shards
+// @description API for routing requests to shards based on shard keys
+// @termsOfService http://swagger.io/terms/
+// @contact.name API Support
+// @contact.email support@sharding-system.com
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
 // @host localhost:8080
-// @BasePath /api/v1
+// @BasePath /v1
 func main() {
 	// Load configuration
 	configPath := os.Getenv("CONFIG_PATH")
