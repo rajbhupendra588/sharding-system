@@ -96,7 +96,58 @@ func (s *UserStore) AddUser(user *User) error {
 		return errors.New("user already exists")
 	}
 	
+	// Check admin limit (max 2 admins)
+	isAdmin := false
+	for _, role := range user.Roles {
+		if role == "admin" {
+			isAdmin = true
+			break
+		}
+	}
+	
+	if isAdmin {
+		adminCount := 0
+		for _, u := range s.users {
+			for _, role := range u.Roles {
+				if role == "admin" {
+					adminCount++
+					break
+				}
+			}
+		}
+		if adminCount >= 2 {
+			return errors.New("maximum of 2 admin users allowed")
+		}
+	}
+	
 	s.users[user.Username] = user
 	return nil
+}
+
+// GetAdminCount returns the number of active admin users
+func (s *UserStore) GetAdminCount() (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	count := 0
+	for _, user := range s.users {
+		if !user.Active {
+			continue
+		}
+		for _, role := range user.Roles {
+			if role == "admin" {
+				count++
+				break
+			}
+		}
+	}
+	return count, nil
+}
+
+// IsSetupRequired checks if the system needs initial setup (no users exist)
+func (s *UserStore) IsSetupRequired() (bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.users) == 0, nil
 }
 

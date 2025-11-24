@@ -56,6 +56,7 @@ func main() {
 		cfg.Sharding.MaxConnections,
 		cfg.Sharding.ConnectionTTL,
 		cfg.Sharding.ReplicaPolicy,
+		cfg.Pricing,
 	)
 	defer shardRouter.Close()
 

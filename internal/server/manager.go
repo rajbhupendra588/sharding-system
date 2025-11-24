@@ -12,6 +12,7 @@ import (
 	"github.com/sharding-system/internal/api"
 	"github.com/sharding-system/internal/middleware"
 	"github.com/sharding-system/pkg/config"
+	"github.com/sharding-system/pkg/discovery"
 	"github.com/sharding-system/pkg/health"
 	"github.com/sharding-system/pkg/manager"
 	"github.com/sharding-system/pkg/security"
@@ -33,8 +34,34 @@ func NewManagerServer(
 	healthController *health.Controller,
 	logger *zap.Logger,
 ) (*ManagerServer, error) {
+	// Initialize Kubernetes discovery (optional - graceful fallback if not available)
+	// Initialize Kubernetes discovery (optional - graceful fallback if not available)
+	var discoveryService discovery.DiscoveryService
+	registeredNames := []string{} // Will be populated from client apps
+
+	// Try to initialize Kubernetes discovery
+	k8sDiscovery, err := discovery.NewKubernetesDiscovery(logger, registeredNames)
+	if err != nil {
+		logger.Warn("Kubernetes discovery not available - running outside cluster or missing permissions", zap.Error(err))
+		logger.Info("Using Mock Discovery service for local development")
+		discoveryService = discovery.NewMockDiscovery(logger)
+	} else {
+		// Verify connectivity and check if any apps are found
+		apps, err := k8sDiscovery.DiscoverApplications(context.Background())
+		if err != nil {
+			logger.Warn("Kubernetes discovery initialized but connection failed - falling back to mock", zap.Error(err))
+			discoveryService = discovery.NewMockDiscovery(logger)
+		} else if len(apps) == 0 {
+			logger.Info("Kubernetes discovery found no applications - falling back to mock for local development")
+			discoveryService = discovery.NewMockDiscovery(logger)
+		} else {
+			logger.Info("Kubernetes discovery initialized successfully", zap.Int("apps_found", len(apps)))
+			discoveryService = k8sDiscovery
+		}
+	}
+
 	// Setup HTTP handlers
-	managerHandler := api.NewManagerHandler(shardManager, logger)
+	managerHandler := api.NewManagerHandler(shardManager, logger, discoveryService)
 
 	// Initialize auth manager
 	// JWT_SECRET is required if RBAC is enabled, optional for development
@@ -77,15 +104,19 @@ func NewManagerServer(
 	muxRouter.Use(middleware.ContentTypeValidation([]string{"application/json"}))
 
 	// Enable auth middleware if RBAC is enabled in config
+	var protectedRouter *mux.Router
 	if cfg.Security.EnableRBAC {
-		muxRouter.Use(middleware.AuthMiddleware(authManager))
+		protectedRouter = muxRouter.PathPrefix("/").Subrouter()
+		protectedRouter.Use(middleware.AuthMiddleware(authManager))
 		logger.Info("RBAC enabled - authentication required for protected endpoints")
 	} else {
+		protectedRouter = muxRouter
 		logger.Warn("RBAC disabled - endpoints are not protected. Enable in production!")
 	}
 
 	// Setup routes
-	api.SetupManagerRoutes(muxRouter, managerHandler)
+	api.SetupPublicRoutes(muxRouter, managerHandler)
+	api.SetupProtectedRoutes(protectedRouter, managerHandler)
 	api.SetupAuthRoutes(muxRouter, authHandler)
 
 	// Setup Swagger documentation

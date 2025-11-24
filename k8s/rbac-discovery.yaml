@@ -1,0 +1,53 @@
+---
+# ServiceAccount for the manager with discovery permissions
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sharding-manager
+  namespace: sharding-system
+---
+# ClusterRole for discovering applications and databases in all namespaces
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: sharding-discovery
+rules:
+  # List and get namespaces
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list", "get"]
+  # List and get deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["list", "get"]
+  # List and get statefulsets
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["list", "get"]
+  # List and get pods (for additional discovery)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "get"]
+  # Read configmaps (may contain database configuration)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+  # Read secrets (may contain database credentials - read-only for discovery)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+---
+# ClusterRoleBinding to grant discovery permissions to the manager service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: sharding-discovery-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: sharding-discovery
+subjects:
+  - kind: ServiceAccount
+    name: sharding-manager
+    namespace: sharding-system
+

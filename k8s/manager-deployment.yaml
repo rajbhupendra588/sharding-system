@@ -15,6 +15,7 @@ spec:
       labels:
         app: manager
     spec:
+      serviceAccountName: sharding-manager
       containers:
       - name: manager
         image: sharding-manager:latest

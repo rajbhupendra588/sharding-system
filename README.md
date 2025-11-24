@@ -75,6 +75,22 @@ flowchart TD
 docker-compose up -d
 ```
 
+### Initial Setup
+
+**Important**: On first startup, you must set up your admin credentials. The system does not create default users.
+
+```bash
+# Create your admin account
+curl -X POST http://localhost:8081/api/v1/auth/setup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "YourSecurePassword123!"
+  }'
+```
+
+**Note**: Maximum of 2 admin users allowed. See [Setup Guide](docs/user/SETUP_GUIDE.md) for details.
+
 The UI will be available at `http://localhost:3000`
 
 ## Developer Guide
@@ -164,24 +180,44 @@ public class UserService {
 }
 ```
 
+## Pricing & Benchmarks
+
+The system is available in three tiers, each optimized for different scales.
+
+| Feature | Free | Pro | Enterprise |
+| :--- | :--- | :--- | :--- |
+| **Max Shards** | 2 | 10 | Unlimited |
+| **Max RPS** | 10 | 100 | Unlimited |
+| **Consistency** | Eventual Only | Strong + Eventual | Strong + Eventual |
+| **Support** | Community | Email | 24/7 Priority |
+
+### Benchmarks
+
+| Metric | Free Tier | Pro Tier | Enterprise Tier |
+| :--- | :--- | :--- | :--- |
+| **Write Latency (p99)** | ~50ms | ~20ms | <10ms |
+| **Read Latency (p99)** | ~20ms | ~10ms | <5ms |
+| **Throughput** | 10 req/sec | 100 req/sec | >10k req/sec |
+| **Replication Lag** | <1s | <100ms | <10ms |
+
 ## Demo
 
-Watch a quick demo of the Sharding System in action:
+Experience the **World Class Sharding System** in action.
+
+### [Interactive Walkthrough](./WALKTHROUGH.md)
+Follow our step-by-step **[Walkthrough Guide](./WALKTHROUGH.md)** to run the automated demo script and explore the system yourself.
 
 ### Dashboard
-![Dashboard](demo/dashboard.png)
-
-### Health Status
-![Health](demo/health.png)
-
-### Metrics
-![Metrics](demo/metrics.png)
+The new premium dashboard provides real-time insights into your sharded cluster.
+![Dashboard](demo/assets/dashboard.png)
 
 ### Shard Management
-![Shards](demo/shards.png)
+Visualize data distribution across your shards.
+![Shards](demo/assets/shards.png)
 
 ### Query Executor
-![Query](demo/query.png)
+Intelligent query routing in action.
+![Query](demo/assets/query.png)
 
 ## Documentation
 

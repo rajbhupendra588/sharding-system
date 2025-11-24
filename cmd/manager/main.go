@@ -56,7 +56,12 @@ func main() {
 	resharderInstance := resharder.NewResharder(cat, logger)
 
 	// Initialize manager
-	shardManager := manager.NewManager(cat, logger, resharderInstance)
+	shardManager := manager.NewManager(cat, logger, resharderInstance, cfg.Pricing)
+
+	// Initialize client apps (discover from existing shards)
+	if err := shardManager.InitializeClientApps(); err != nil {
+		logger.Warn("failed to initialize client apps", zap.Error(err))
+	}
 
 	// Initialize health controller
 	healthController := health.NewController(

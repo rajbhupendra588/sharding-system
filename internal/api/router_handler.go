@@ -24,30 +24,44 @@ import (
 
 // RouterHandler handles HTTP requests for the router
 type RouterHandler struct {
-	router *router.Router
-	logger *zap.Logger
+	router       *router.Router
+	logger       *zap.Logger
+	clientAppMgr interface {
+		TrackRequest(shardKey string, shardID string)
+	}
 }
 
 // NewRouterHandler creates a new router handler
-func NewRouterHandler(r *router.Router, logger *zap.Logger) *RouterHandler {
+func NewRouterHandler(r *router.Router, logger *zap.Logger, clientAppMgr interface {
+	TrackRequest(shardKey string, shardID string)
+}) *RouterHandler {
 	return &RouterHandler{
-		router: r,
-		logger: logger,
+		router:       r,
+		logger:       logger,
+		clientAppMgr: clientAppMgr,
 	}
 }
 
 // ExecuteQuery handles query execution requests
 // @Summary Execute a query on a shard
-// @Description Executes a SQL query on the shard determined by the shard key
+// @Description Executes a SQL query on the shard determined by the shard key, scoped to client application
 // @Tags router
 // @Accept json
 // @Produce json
+// @Param X-Client-App-ID header string true "Client Application ID"
 // @Param request body models.QueryRequest true "Query Request"
 // @Success 200 {object} models.QueryResponse "Query executed successfully"
 // @Failure 400 {object} map[string]interface{} "Bad request"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /execute [post]
 func (h *RouterHandler) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
+	// Extract client application ID from header
+	clientAppID := r.Header.Get("X-Client-App-ID")
+	if clientAppID == "" {
+		h.writeError(w, errors.New(http.StatusBadRequest, "X-Client-App-ID header is required - sharding is scoped to client applications"))
+		return
+	}
+
 	var req models.QueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeError(w, errors.Wrap(err, http.StatusBadRequest, "invalid request body"))
@@ -68,11 +82,16 @@ func (h *RouterHandler) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 		req.Consistency = "strong"
 	}
 
-	resp, err := h.router.ExecuteQuery(r.Context(), &req)
+	resp, err := h.router.ExecuteQuery(r.Context(), &req, clientAppID)
 	if err != nil {
 		h.logger.Error("query execution failed", zap.Error(err))
 		h.writeError(w, errors.Wrap(err, http.StatusInternalServerError, "query execution failed"))
 		return
+	}
+
+	// Track client application usage
+	if h.clientAppMgr != nil && resp != nil {
+		h.clientAppMgr.TrackRequest(req.ShardKey, resp.ShardID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -83,27 +102,40 @@ func (h *RouterHandler) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 
 // GetShardForKey handles shard lookup requests
 // @Summary Get shard ID for a key
-// @Description Returns the shard ID that handles the given key
+// @Description Returns the shard ID that handles the given key, scoped to client application
 // @Tags router
 // @Accept json
 // @Produce json
+// @Param X-Client-App-ID header string true "Client Application ID"
 // @Param key query string true "Shard key"
 // @Success 200 {object} map[string]string "Shard ID"
 // @Failure 400 {object} map[string]interface{} "Bad request"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /shard-for-key [get]
 func (h *RouterHandler) GetShardForKey(w http.ResponseWriter, r *http.Request) {
+	// Extract client application ID from header
+	clientAppID := r.Header.Get("X-Client-App-ID")
+	if clientAppID == "" {
+		h.writeError(w, errors.New(http.StatusBadRequest, "X-Client-App-ID header is required - sharding is scoped to client applications"))
+		return
+	}
+
 	key := r.URL.Query().Get("key")
 	if key == "" {
 		h.writeError(w, errors.New(http.StatusBadRequest, "key parameter is required"))
 		return
 	}
 
-	shardID, err := h.router.GetShardForKey(key)
+	shardID, err := h.router.GetShardForKey(key, clientAppID)
 	if err != nil {
 		h.logger.Error("failed to get shard", zap.Error(err))
 		h.writeError(w, errors.Wrap(err, http.StatusInternalServerError, "failed to get shard"))
 		return
+	}
+
+	// Track client application usage
+	if h.clientAppMgr != nil {
+		h.clientAppMgr.TrackRequest(key, shardID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -141,24 +173,23 @@ func SetupRouterRoutes(router *mux.Router, handler *RouterHandler) {
 			},
 		})
 	}).Methods("GET", "OPTIONS")
-	
+
 	router.HandleFunc("/v1/execute", handler.ExecuteQuery).Methods("POST", "OPTIONS")
 	router.HandleFunc("/v1/shard-for-key", handler.GetShardForKey).Methods("GET", "OPTIONS")
-	
+
 	// Health endpoint under /v1
 	router.HandleFunc("/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "healthy",
+			"status":  "healthy",
 			"version": "1.0.0",
 		})
 	}).Methods("GET", "OPTIONS")
-	
+
 	// Legacy health endpoint (keep for backward compatibility)
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	}).Methods("GET", "OPTIONS")
 }
-

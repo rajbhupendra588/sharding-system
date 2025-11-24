@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/sharding-system/pkg/config"
 	"github.com/sharding-system/pkg/models"
 	"go.uber.org/zap/zaptest"
 )
@@ -20,7 +21,7 @@ func NewMockCatalog() *MockCatalog {
 	}
 }
 
-func (m *MockCatalog) GetShard(key string) (*models.Shard, error) {
+func (m *MockCatalog) GetShard(key string, clientAppID string) (*models.Shard, error) {
 	for _, shard := range m.shards {
 		return shard, nil
 	}
@@ -35,7 +36,7 @@ func (m *MockCatalog) GetShardByID(shardID string) (*models.Shard, error) {
 	return shard, nil
 }
 
-func (m *MockCatalog) ListShards() ([]models.Shard, error) {
+func (m *MockCatalog) ListShards(clientAppID string) ([]models.Shard, error) {
 	shards := make([]models.Shard, 0, len(m.shards))
 	for _, shard := range m.shards {
 		shards = append(shards, *shard)
@@ -89,22 +90,29 @@ func TestManager_CreateShard(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
 	resharder := &MockResharder{}
-	
-	manager := NewManager(catalog, logger, resharder)
-	
+
+	manager := NewManager(catalog, logger, resharder, config.PricingConfig{Tier: "pro"})
+
+	// First, register a client application (required for shard creation)
+	ctx := context.Background()
+	clientApp, err := manager.GetClientAppManager().RegisterClientApp(ctx, "test-client-app", "Test app", "", "", "", "", "", "", "", "")
+	if err != nil {
+		t.Fatalf("Failed to register client app: %v", err)
+	}
+
 	req := &models.CreateShardRequest{
 		Name:            "test-shard",
+		ClientAppID:     clientApp.ID, // Use the registered client app ID
 		PrimaryEndpoint: "postgres://localhost/test",
 		Replicas:        []string{"postgres://localhost/replica"},
 		VNodeCount:      10,
 	}
-	
-	ctx := context.Background()
+
 	shard, err := manager.CreateShard(ctx, req)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	
+
 	if shard == nil {
 		t.Fatal("Expected non-nil shard")
 	}
@@ -123,9 +131,9 @@ func TestManager_GetShard(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
 	resharder := &MockResharder{}
-	
-	manager := NewManager(catalog, logger, resharder)
-	
+
+	manager := NewManager(catalog, logger, resharder, config.PricingConfig{Tier: "pro"})
+
 	shard := &models.Shard{
 		ID:              "shard1",
 		Name:            "test-shard",
@@ -133,7 +141,7 @@ func TestManager_GetShard(t *testing.T) {
 		Status:          "active",
 	}
 	catalog.CreateShard(shard)
-	
+
 	got, err := manager.GetShard("shard1")
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -147,14 +155,14 @@ func TestManager_ListShards(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
 	resharder := &MockResharder{}
-	
-	manager := NewManager(catalog, logger, resharder)
-	
+
+	manager := NewManager(catalog, logger, resharder, config.PricingConfig{Tier: "pro"})
+
 	shard1 := &models.Shard{ID: "shard1", Name: "shard1"}
 	shard2 := &models.Shard{ID: "shard2", Name: "shard2"}
 	catalog.CreateShard(shard1)
 	catalog.CreateShard(shard2)
-	
+
 	shards, err := manager.ListShards()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -168,15 +176,15 @@ func TestManager_DeleteShard_ActiveShard(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
 	resharder := &MockResharder{}
-	
-	manager := NewManager(catalog, logger, resharder)
-	
+
+	manager := NewManager(catalog, logger, resharder, config.PricingConfig{Tier: "pro"})
+
 	shard := &models.Shard{
 		ID:     "shard1",
 		Status: "active",
 	}
 	catalog.CreateShard(shard)
-	
+
 	err := manager.DeleteShard("shard1")
 	if err == nil {
 		t.Error("Expected error when deleting active shard")
@@ -187,15 +195,15 @@ func TestManager_DeleteShard_InactiveShard(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
 	resharder := &MockResharder{}
-	
-	manager := NewManager(catalog, logger, resharder)
-	
+
+	manager := NewManager(catalog, logger, resharder, config.PricingConfig{Tier: "pro"})
+
 	shard := &models.Shard{
 		ID:     "shard1",
 		Status: "inactive",
 	}
 	catalog.CreateShard(shard)
-	
+
 	err := manager.DeleteShard("shard1")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
@@ -206,9 +214,9 @@ func TestManager_GetReshardJob(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
 	resharder := &MockResharder{}
-	
-	manager := NewManager(catalog, logger, resharder)
-	
+
+	manager := NewManager(catalog, logger, resharder, config.PricingConfig{Tier: "pro"})
+
 	job := &models.ReshardJob{
 		ID:     "job1",
 		Status: "pending",
@@ -216,7 +224,7 @@ func TestManager_GetReshardJob(t *testing.T) {
 	manager.mu.Lock()
 	manager.jobs["job1"] = job
 	manager.mu.Unlock()
-	
+
 	got, err := manager.GetReshardJob("job1")
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -230,12 +238,11 @@ func TestManager_GetReshardJob_NotFound(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
 	resharder := &MockResharder{}
-	
-	manager := NewManager(catalog, logger, resharder)
-	
+
+	manager := NewManager(catalog, logger, resharder, config.PricingConfig{Tier: "pro"})
+
 	_, err := manager.GetReshardJob("nonexistent")
 	if err == nil {
 		t.Error("Expected error for nonexistent job")
 	}
 }
-

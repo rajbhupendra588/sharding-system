@@ -7,29 +7,29 @@ import (
 	"sync"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/sharding-system/pkg/catalog"
 	"github.com/sharding-system/pkg/models"
-	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
 
 // Controller monitors shard health and handles failover
 type Controller struct {
-	catalog      catalog.Catalog
-	logger       *zap.Logger
-	healthStatus map[string]*models.ShardHealth
-	mu           sync.RWMutex
-	checkInterval time.Duration
+	catalog                 catalog.Catalog
+	logger                  *zap.Logger
+	healthStatus            map[string]*models.ShardHealth
+	mu                      sync.RWMutex
+	checkInterval           time.Duration
 	replicationLagThreshold time.Duration
 }
 
 // NewController creates a new health controller
 func NewController(catalog catalog.Catalog, logger *zap.Logger, checkInterval, lagThreshold time.Duration) *Controller {
 	return &Controller{
-		catalog:                catalog,
-		logger:                 logger,
-		healthStatus:           make(map[string]*models.ShardHealth),
-		checkInterval:          checkInterval,
+		catalog:                 catalog,
+		logger:                  logger,
+		healthStatus:            make(map[string]*models.ShardHealth),
+		checkInterval:           checkInterval,
 		replicationLagThreshold: lagThreshold,
 	}
 }
@@ -54,7 +54,7 @@ func (c *Controller) Start(ctx context.Context) {
 
 // checkAllShards checks health of all shards
 func (c *Controller) checkAllShards(ctx context.Context) {
-	shards, err := c.catalog.ListShards()
+	shards, err := c.catalog.ListShards("") // Check health of all shards
 	if err != nil {
 		c.logger.Error("failed to list shards for health check", zap.Error(err))
 		return
@@ -68,11 +68,11 @@ func (c *Controller) checkAllShards(ctx context.Context) {
 // checkShard checks the health of a single shard
 func (c *Controller) checkShard(ctx context.Context, shard *models.Shard) {
 	health := &models.ShardHealth{
-		ShardID:   shard.ID,
-		Status:    "healthy",
-		LastCheck: time.Now(),
-		PrimaryUp: false,
-		ReplicasUp: make([]string, 0),
+		ShardID:      shard.ID,
+		Status:       "healthy",
+		LastCheck:    time.Now(),
+		PrimaryUp:    false,
+		ReplicasUp:   make([]string, 0),
 		ReplicasDown: make([]string, 0),
 	}
 
@@ -139,7 +139,7 @@ func (c *Controller) getReplicationLag(ctx context.Context, shard *models.Shard)
 	// In production, this would query the database for actual replication lag
 	// For PostgreSQL, you'd query pg_stat_replication
 	// For now, return 0 (no lag) as a placeholder
-	
+
 	if len(shard.Replicas) == 0 {
 		return 0
 	}
@@ -192,4 +192,3 @@ func (c *Controller) ShouldFailover(shardID string) (bool, string) {
 
 	return false, ""
 }
-

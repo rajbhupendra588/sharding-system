@@ -28,8 +28,8 @@ func NewRouterServer(
 	shardRouter *router.Router,
 	logger *zap.Logger,
 ) (*RouterServer, error) {
-	// Setup HTTP handlers
-	routerHandler := api.NewRouterHandler(shardRouter, logger)
+	// Setup HTTP handlers (clientAppMgr is nil for router - tracking happens in manager)
+	routerHandler := api.NewRouterHandler(shardRouter, logger, nil)
 	muxRouter := mux.NewRouter()
 
 	// Apply middleware - CORS must be first to ensure headers are set

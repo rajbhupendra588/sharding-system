@@ -15,9 +15,9 @@ import (
 
 // Catalog manages shard metadata and routing information
 type Catalog interface {
-	GetShard(key string) (*models.Shard, error)
+	GetShard(key string, clientAppID string) (*models.Shard, error) // Get shard for a key, scoped to client app
 	GetShardByID(shardID string) (*models.Shard, error)
-	ListShards() ([]models.Shard, error)
+	ListShards(clientAppID string) ([]models.Shard, error) // List shards for a client app (empty string = all)
 	CreateShard(shard *models.Shard) error
 	UpdateShard(shard *models.Shard) error
 	DeleteShard(shardID string) error
@@ -69,14 +69,20 @@ func NewEtcdCatalog(endpoints []string, logger *zap.Logger) (*EtcdCatalog, error
 	return catalog, nil
 }
 
-// GetShard returns the shard for a given key
-func (c *EtcdCatalog) GetShard(key string) (*models.Shard, error) {
+// GetEtcdClient returns the underlying etcd client (for internal use by manager)
+func (c *EtcdCatalog) GetEtcdClient() *clientv3.Client {
+	return c.client
+}
+
+// GetShard returns the shard for a given key, scoped to a client application
+func (c *EtcdCatalog) GetShard(key string, clientAppID string) (*models.Shard, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	c.hashRing.mu.RLock()
 	defer c.hashRing.mu.RUnlock()
 
+	// Get shard ID from hash ring
 	shardID := c.hashRing.hashFunc.GetShard(key)
 	if shardID == "" {
 		return nil, fmt.Errorf("no shard found for key: %s", key)
@@ -85,6 +91,11 @@ func (c *EtcdCatalog) GetShard(key string) (*models.Shard, error) {
 	shard, exists := c.cache[shardID]
 	if !exists {
 		return nil, fmt.Errorf("shard %s not found in cache", shardID)
+	}
+
+	// Verify shard belongs to the client application
+	if clientAppID != "" && shard.ClientAppID != clientAppID {
+		return nil, fmt.Errorf("shard %s does not belong to client application %s", shardID, clientAppID)
 	}
 
 	return shard, nil
@@ -103,14 +114,16 @@ func (c *EtcdCatalog) GetShardByID(shardID string) (*models.Shard, error) {
 	return shard, nil
 }
 
-// ListShards returns all shards
-func (c *EtcdCatalog) ListShards() ([]models.Shard, error) {
+// ListShards returns shards for a client application (empty clientAppID returns all)
+func (c *EtcdCatalog) ListShards(clientAppID string) ([]models.Shard, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	shards := make([]models.Shard, 0, len(c.cache))
+	shards := make([]models.Shard, 0)
 	for _, shard := range c.cache {
-		shards = append(shards, *shard)
+		if clientAppID == "" || shard.ClientAppID == clientAppID {
+			shards = append(shards, *shard)
+		}
 	}
 
 	return shards, nil
@@ -170,7 +183,7 @@ func (c *EtcdCatalog) UpdateShard(shard *models.Shard) error {
 		return fmt.Errorf("failed to marshal shard: %w", err)
 	}
 
-	key := fmt.Sprintf("/shards/%s", shard.ID)
+	key := fmt.Sprintf("/shards/%s/%s", shard.ClientAppID, shard.ID)
 	_, err = c.client.Put(ctx, key, string(shardData))
 	if err != nil {
 		return fmt.Errorf("failed to update shard in etcd: %w", err)
@@ -192,7 +205,13 @@ func (c *EtcdCatalog) DeleteShard(shardID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	key := fmt.Sprintf("/shards/%s", shardID)
+	// Note: We need to find the shard first to get its client app ID
+	// For now, we'll search all shards (this could be optimized)
+	shard, exists := c.cache[shardID]
+	if !exists {
+		return fmt.Errorf("shard %s not found", shardID)
+	}
+	key := fmt.Sprintf("/shards/%s/%s", shard.ClientAppID, shardID)
 	_, err := c.client.Delete(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to delete shard from etcd: %w", err)
@@ -231,7 +250,7 @@ func (c *EtcdCatalog) Watch(ctx context.Context) (<-chan *models.ShardCatalog, e
 						continue
 					}
 
-					shards, _ := c.ListShards()
+					shards, _ := c.ListShards("") // List all shards for catalog update
 					catalog := &models.ShardCatalog{
 						Version:   c.version,
 						Shards:    shards,

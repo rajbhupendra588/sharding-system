@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import * as React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, GitBranch, ArrowRight } from 'lucide-react';
+import { Plus, GitBranch, ArrowRight, Users } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import { useClientApps } from '@/features/clientApp';
 import type { SplitRequest, MergeRequest, CreateShardRequest } from '@/types';
 
 export default function Resharding() {
@@ -140,14 +142,20 @@ interface SplitShardModalProps {
   onClose: () => void;
   onSubmit: (data: SplitRequest) => void;
   isLoading: boolean;
-  shards: Array<{ id: string; name: string }>;
+  shards: Array<{ id: string; name: string; client_app_id?: string }>;
 }
 
 function SplitShardModal({ isOpen, onClose, onSubmit, isLoading, shards }: SplitShardModalProps) {
+  const { data: clientApps } = useClientApps();
+  const clientAppMap = new Map(clientApps?.map(app => [app.id, app.name]) || []);
   const [sourceShardId, setSourceShardId] = useState('');
   const [targetShards, setTargetShards] = useState<CreateShardRequest[]>([
-    { name: '', primary_endpoint: '', replicas: [], vnode_count: 256 },
+    { name: '', client_app_id: '', primary_endpoint: '', replicas: [], vnode_count: 256 },
   ]);
+
+  // Get selected source shard to determine client app
+  const sourceShard = shards.find(s => s.id === sourceShardId);
+  const sourceClientAppId = sourceShard?.client_app_id || '';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,15 +163,37 @@ function SplitShardModal({ isOpen, onClose, onSubmit, isLoading, shards }: Split
       toast.error('Please fill in all required fields');
       return;
     }
+    if (!sourceClientAppId) {
+      toast.error('Source shard must belong to a client application');
+      return;
+    }
+    // Ensure all target shards have the same client_app_id as source
+    const validatedTargets = targetShards.map(t => ({
+      ...t,
+      client_app_id: sourceClientAppId, // Inherit from source shard
+    }));
     onSubmit({
       source_shard_id: sourceShardId,
-      target_shards: targetShards,
+      target_shards: validatedTargets,
     });
   };
 
   const addTargetShard = () => {
-    setTargetShards([...targetShards, { name: '', primary_endpoint: '', replicas: [], vnode_count: 256 }]);
+    setTargetShards([...targetShards, {
+      name: '',
+      client_app_id: sourceClientAppId, // Inherit client app ID
+      primary_endpoint: '',
+      replicas: [],
+      vnode_count: 256
+    }]);
   };
+
+  // Update target shards when source changes
+  React.useEffect(() => {
+    if (sourceClientAppId) {
+      setTargetShards(prev => prev.map(t => ({ ...t, client_app_id: sourceClientAppId })));
+    }
+  }, [sourceClientAppId]);
 
   const updateTargetShard = (index: number, field: keyof CreateShardRequest, value: unknown) => {
     const updated = [...targetShards];
@@ -200,12 +230,26 @@ function SplitShardModal({ isOpen, onClose, onSubmit, isLoading, shards }: Split
             required
           >
             <option value="">Select a shard</option>
-            {shards.map((shard) => (
-              <option key={shard.id} value={shard.id}>
-                {shard.name} ({shard.id})
-              </option>
-            ))}
+            {shards.map((shard) => {
+              const clientAppName = shard.client_app_id ? clientAppMap.get(shard.client_app_id) : 'Unknown';
+              return (
+                <option key={shard.id} value={shard.id}>
+                  {shard.name} - {clientAppName} ({shard.id.substring(0, 8)}...)
+                </option>
+              );
+            })}
           </select>
+          {sourceShard && sourceShard.client_app_id && (
+            <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-sm">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                <Users className="h-4 w-4" />
+                <span>Client Application: <strong>{clientAppMap.get(sourceShard.client_app_id) || sourceShard.client_app_id}</strong></span>
+              </div>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                Target shards will belong to the same client application
+              </p>
+            </div>
+          )}
         </div>
 
         <div>
@@ -271,17 +315,26 @@ interface MergeShardsModalProps {
   onClose: () => void;
   onSubmit: (data: MergeRequest) => void;
   isLoading: boolean;
-  shards: Array<{ id: string; name: string }>;
+  shards: Array<{ id: string; name: string; client_app_id?: string }>;
 }
 
 function MergeShardsModal({ isOpen, onClose, onSubmit, isLoading, shards }: MergeShardsModalProps) {
+  const { data: clientApps } = useClientApps();
+  const clientAppMap = new Map(clientApps?.map(app => [app.id, app.name]) || []);
   const [sourceShardIds, setSourceShardIds] = useState<string[]>([]);
   const [targetShard, setTargetShard] = useState<CreateShardRequest>({
     name: '',
+    client_app_id: '',
     primary_endpoint: '',
     replicas: [],
     vnode_count: 256,
   });
+
+  // Get client app ID from selected source shards (must all be same)
+  const selectedShards = shards.filter(s => sourceShardIds.includes(s.id));
+  const sourceClientAppId = selectedShards.length > 0 && selectedShards.every(s => s.client_app_id === selectedShards[0].client_app_id)
+    ? selectedShards[0].client_app_id
+    : '';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,9 +342,16 @@ function MergeShardsModal({ isOpen, onClose, onSubmit, isLoading, shards }: Merg
       toast.error('Please select at least 2 source shards');
       return;
     }
+    if (!sourceClientAppId) {
+      toast.error('All source shards must belong to the same client application');
+      return;
+    }
     onSubmit({
       source_shard_ids: sourceShardIds,
-      target_shard: targetShard,
+      target_shard: {
+        ...targetShard,
+        client_app_id: sourceClientAppId, // Inherit from source shards
+      },
     });
   };
 
@@ -326,24 +386,65 @@ function MergeShardsModal({ isOpen, onClose, onSubmit, isLoading, shards }: Merg
             Source Shards (select at least 2)
           </label>
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-48 overflow-y-auto space-y-2">
-            {shards.map((shard) => (
-              <label key={shard.id} className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sourceShardIds.includes(shard.id)}
-                  onChange={() => toggleSourceShard(shard.id)}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 bg-white dark:bg-gray-800"
-                />
-                <span className="text-sm text-gray-900 dark:text-gray-300">
-                  {shard.name} ({shard.id})
-                </span>
-              </label>
-            ))}
+            {shards.map((shard) => {
+              const clientAppName = shard.client_app_id ? clientAppMap.get(shard.client_app_id) : 'Unknown';
+              const isSelected = sourceShardIds.includes(shard.id);
+              const isCompatible = !sourceShardIds.length ||
+                (shard.client_app_id && sourceShardIds.every(id => {
+                  const otherShard = shards.find(s => s.id === id);
+                  return otherShard?.client_app_id === shard.client_app_id;
+                }));
+
+              return (
+                <label
+                  key={shard.id}
+                  className={`flex items-start space-x-2 cursor-pointer p-2 rounded ${isSelected ? 'bg-primary-50 dark:bg-primary-900/20' :
+                    !isCompatible ? 'opacity-50' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSourceShard(shard.id)}
+                    disabled={!isCompatible && !isSelected}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 bg-white dark:bg-gray-800 mt-0.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{shard.name}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">({shard.id.substring(0, 8)}...)</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Users className="h-3 w-3 text-gray-400" />
+                      <span className="text-xs text-gray-600 dark:text-gray-400">{clientAppName || 'No client app'}</span>
+                    </div>
+                    {!isCompatible && !isSelected && (
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                        Must belong to same client app as selected shards
+                      </p>
+                    )}
+                  </div>
+                </label>
+              );
+            })}
           </div>
+          {sourceClientAppId && (
+            <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-sm">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                <Users className="h-4 w-4" />
+                <span>Target shard will belong to: <strong>{clientAppMap.get(sourceClientAppId) || sourceClientAppId}</strong></span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
           <h4 className="font-medium text-gray-900 dark:text-white mb-3">Target Shard Configuration</h4>
+          {sourceClientAppId && (
+            <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
+              Client Application: <strong className="text-gray-900 dark:text-white">{clientAppMap.get(sourceClientAppId) || sourceClientAppId}</strong> (inherited from source shards)
+            </div>
+          )}
           <div className="space-y-3">
             <input
               type="text"

@@ -9,65 +9,71 @@ import (
 
 // Config holds the application configuration
 type Config struct {
-	Server     ServerConfig     `json:"server"`
-	Metadata   MetadataConfig   `json:"metadata"`
-	Sharding   ShardingConfig   `json:"sharding"`
-	Security   SecurityConfig   `json:"security"`
+	Server        ServerConfig        `json:"server"`
+	Metadata      MetadataConfig      `json:"metadata"`
+	Sharding      ShardingConfig      `json:"sharding"`
+	Security      SecurityConfig      `json:"security"`
 	Observability ObservabilityConfig `json:"observability"`
+	Pricing       PricingConfig       `json:"pricing"`
+}
+
+// PricingConfig holds pricing tier configuration
+type PricingConfig struct {
+	Tier string `json:"tier"` // "free", "pro", "enterprise"
 }
 
 // ServerConfig holds server configuration
 type ServerConfig struct {
-	Host         string        `json:"host"`
-	Port         int           `json:"port"`
-	ReadTimeout  time.Duration `json:"-"`
-	WriteTimeout time.Duration `json:"-"`
-	IdleTimeout  time.Duration `json:"-"`
-	ReadTimeoutStr  string     `json:"read_timeout"`
-	WriteTimeoutStr string     `json:"write_timeout"`
-	IdleTimeoutStr  string     `json:"idle_timeout"`
+	Host            string        `json:"host"`
+	Port            int           `json:"port"`
+	ReadTimeout     time.Duration `json:"-"`
+	WriteTimeout    time.Duration `json:"-"`
+	IdleTimeout     time.Duration `json:"-"`
+	ReadTimeoutStr  string        `json:"read_timeout"`
+	WriteTimeoutStr string        `json:"write_timeout"`
+	IdleTimeoutStr  string        `json:"idle_timeout"`
 }
 
 // MetadataConfig holds metadata store configuration
 type MetadataConfig struct {
-	Type     string   `json:"type"` // "etcd" or "postgres"
-	Endpoints []string `json:"endpoints"`
-	Username string   `json:"username"`
-	Password string   `json:"password"`
-	Database string   `json:"database"`
-	Timeout  time.Duration `json:"-"`
-	TimeoutStr string `json:"timeout"`
+	Type       string        `json:"type"` // "etcd" or "postgres"
+	Endpoints  []string      `json:"endpoints"`
+	Username   string        `json:"username"`
+	Password   string        `json:"password"`
+	Database   string        `json:"database"`
+	Timeout    time.Duration `json:"-"`
+	TimeoutStr string        `json:"timeout"`
 }
 
 // ShardingConfig holds sharding-specific configuration
 type ShardingConfig struct {
-	Strategy        string `json:"strategy"` // "hash" or "range"
-	HashFunction    string `json:"hash_function"` // "murmur3" or "xxhash"
-	VNodeCount      int    `json:"vnode_count"`
-	ReplicaPolicy   string `json:"replica_policy"` // "primary" or "replica_ok"
-	MaxConnections  int    `json:"max_connections"`
-	ConnectionTTL   time.Duration `json:"-"`
-	ConnectionTTLStr string `json:"connection_ttl"`
+	Strategy         string        `json:"strategy"`      // "hash" or "range"
+	HashFunction     string        `json:"hash_function"` // "murmur3" or "xxhash"
+	VNodeCount       int           `json:"vnode_count"`
+	ReplicaPolicy    string        `json:"replica_policy"` // "primary" or "replica_ok"
+	MaxConnections   int           `json:"max_connections"`
+	ConnectionTTL    time.Duration `json:"-"`
+	ConnectionTTLStr string        `json:"connection_ttl"`
 }
 
 // SecurityConfig holds security configuration
 type SecurityConfig struct {
-	EnableTLS      bool   `json:"enable_tls"`
-	TLSCertPath    string `json:"tls_cert_path"`
-	TLSKeyPath     string `json:"tls_key_path"`
-	EnableRBAC     bool   `json:"enable_rbac"`
-	JWTSecret      string `json:"jwt_secret"`
-	AuditLogPath   string `json:"audit_log_path"`
+	EnableTLS    bool   `json:"enable_tls"`
+	TLSCertPath  string `json:"tls_cert_path"`
+	TLSKeyPath   string `json:"tls_key_path"`
+	EnableRBAC   bool   `json:"enable_rbac"`
+	JWTSecret    string `json:"jwt_secret"`
+	AuditLogPath string `json:"audit_log_path"`
 	// UserDatabaseDSN is the PostgreSQL DSN for user storage (MAANG standard)
 	UserDatabaseDSN string `json:"user_database_dsn"`
 }
 
 // ObservabilityConfig holds observability configuration
 type ObservabilityConfig struct {
-	MetricsPort    int    `json:"metrics_port"`
-	EnableTracing  bool   `json:"enable_tracing"`
+	MetricsPort     int    `json:"metrics_port"`
+	EnableTracing   bool   `json:"enable_tracing"`
 	TracingEndpoint string `json:"tracing_endpoint"`
-	LogLevel       string `json:"log_level"`
+	LogLevel        string `json:"log_level"`
 }
 
 // LoadConfig loads configuration from a JSON file
@@ -173,5 +179,7 @@ func setDefaults(c *Config) {
 	if c.Observability.LogLevel == "" {
 		c.Observability.LogLevel = "info"
 	}
+	if c.Pricing.Tier == "" {
+		c.Pricing.Tier = "free"
+	}
 }
-

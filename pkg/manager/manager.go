@@ -8,18 +8,22 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sharding-system/pkg/catalog"
+	"github.com/sharding-system/pkg/config"
 	"github.com/sharding-system/pkg/hashing"
 	"github.com/sharding-system/pkg/models"
+	"github.com/sharding-system/pkg/pricing"
 	"go.uber.org/zap"
 )
 
 // Manager manages shards and resharding operations
 type Manager struct {
-	catalog    catalog.Catalog
-	logger     *zap.Logger
-	jobs       map[string]*models.ReshardJob
-	mu         sync.RWMutex
-	resharder  Resharder
+	catalog       catalog.Catalog
+	logger        *zap.Logger
+	jobs          map[string]*models.ReshardJob
+	mu            sync.RWMutex
+	resharder     Resharder
+	pricingConfig config.PricingConfig
+	clientAppMgr  *ClientAppManager
 }
 
 // Resharder handles data migration
@@ -29,20 +33,103 @@ type Resharder interface {
 }
 
 // NewManager creates a new shard manager
-func NewManager(catalog catalog.Catalog, logger *zap.Logger, resharder Resharder) *Manager {
+func NewManager(catalog catalog.Catalog, logger *zap.Logger, resharder Resharder, pricingConfig config.PricingConfig) *Manager {
 	return &Manager{
-		catalog:   catalog,
-		logger:    logger,
-		jobs:      make(map[string]*models.ReshardJob),
-		resharder: resharder,
+		catalog:       catalog,
+		logger:        logger,
+		jobs:          make(map[string]*models.ReshardJob),
+		resharder:     resharder,
+		pricingConfig: pricingConfig,
+		clientAppMgr:  NewClientAppManager(catalog, logger),
 	}
 }
 
-// CreateShard creates a new shard
+// GetClientAppManager returns the client application manager
+func (m *Manager) GetClientAppManager() *ClientAppManager {
+	return m.clientAppMgr
+}
+
+// GetPricingConfig returns the pricing configuration
+func (m *Manager) GetPricingConfig() config.PricingConfig {
+	return m.pricingConfig
+}
+
+// InitializeClientApps discovers client applications from existing shards
+func (m *Manager) InitializeClientApps() error {
+	// Get all shards
+	shards, err := m.ListShards()
+	if err != nil {
+		return fmt.Errorf("failed to list shards: %w", err)
+	}
+
+	// If we have shards but no client apps, create a default client app
+	// This helps users see that sharding is being used even if clients aren't registered
+	if len(shards) > 0 {
+		clientAppMgr := m.GetClientAppManager()
+		apps, _ := clientAppMgr.ListClientApps()
+
+		if len(apps) == 0 {
+			// Create a default client app to represent existing usage
+			defaultApp, err := clientAppMgr.RegisterClientApp(
+				context.Background(),
+				"Default Client Application",
+				fmt.Sprintf("Auto-created to represent existing shard usage (%d active shards). Register specific client applications to track them individually.", len(shards)),
+				"", // database_name - empty for default
+				"", // database_host - empty for default
+				"", // database_port - empty for default
+				"", // database_user - empty for default
+				"", // database_password - empty for default
+				"", // key_prefix - empty for default
+				"", // namespace - empty for default
+				"", // cluster_name - empty for default
+			)
+			if err != nil {
+				m.logger.Warn("failed to create default client app", zap.Error(err))
+			} else {
+				// Associate all existing shards with the default app
+				for _, shard := range shards {
+					clientAppMgr.TrackRequest("", shard.ID)
+				}
+				m.logger.Info("created default client application for existing shards",
+					zap.String("app_id", defaultApp.ID),
+					zap.Int("shard_count", len(shards)))
+			}
+		}
+	}
+
+	return nil
+}
+
+// CreateShard creates a new shard for a client application
 func (m *Manager) CreateShard(ctx context.Context, req *models.CreateShardRequest) (*models.Shard, error) {
+	// Validate client app ID is provided
+	if req.ClientAppID == "" {
+		return nil, fmt.Errorf("client_app_id is required - shards must belong to a client application")
+	}
+
+	// Verify client application exists
+	clientAppMgr := m.GetClientAppManager()
+	_, err := clientAppMgr.GetClientApp(req.ClientAppID)
+	if err != nil {
+		return nil, fmt.Errorf("client application not found: %s", req.ClientAppID)
+	}
+
+	// Check pricing limits (per client app)
+	limits := pricing.GetLimits(m.pricingConfig.Tier)
+	if limits.MaxShards != -1 {
+		shards, err := m.ListShardsForClient(req.ClientAppID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list shards for limit check: %w", err)
+		}
+		if len(shards) >= limits.MaxShards {
+			return nil, fmt.Errorf("shard limit reached for client application %s (max %d)", req.ClientAppID, limits.MaxShards)
+		}
+	}
+
 	shard := &models.Shard{
 		ID:              uuid.New().String(),
 		Name:            req.Name,
+		ClientAppID:     req.ClientAppID,
 		PrimaryEndpoint: req.PrimaryEndpoint,
 		Replicas:        req.Replicas,
 		Status:          "active",
@@ -82,9 +169,14 @@ func (m *Manager) GetShard(shardID string) (*models.Shard, error) {
 	return m.catalog.GetShardByID(shardID)
 }
 
-// ListShards lists all shards
+// ListShards lists all shards (for admin/management purposes)
 func (m *Manager) ListShards() ([]models.Shard, error) {
-	return m.catalog.ListShards()
+	return m.catalog.ListShards("")
+}
+
+// ListShardsForClient lists shards for a specific client application
+func (m *Manager) ListShardsForClient(clientAppID string) ([]models.Shard, error) {
+	return m.catalog.ListShards(clientAppID)
 }
 
 // DeleteShard deletes a shard
@@ -283,4 +375,3 @@ func (m *Manager) PromoteReplica(shardID string, replicaEndpoint string) error {
 
 	return nil
 }
-

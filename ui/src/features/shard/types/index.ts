@@ -15,6 +15,7 @@ export interface Shard {
   created_at: string;
   updated_at: string;
   vnodes?: VNode[];
+  client_app_id?: string;
 }
 
 export type ShardStatus = 'active' | 'migrating' | 'readonly' | 'inactive';

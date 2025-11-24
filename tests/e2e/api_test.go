@@ -21,7 +21,7 @@ import (
 // setupTestServers creates test instances of router and manager servers
 func setupTestServers(t *testing.T) (*server.RouterServer, *server.ManagerServer, func()) {
 	logger, _ := zap.NewDevelopment()
-	
+
 	// Create mock catalog
 	cat, err := catalog.NewEtcdCatalog([]string{"localhost:2379"}, logger)
 	if err != nil {
@@ -29,13 +29,13 @@ func setupTestServers(t *testing.T) (*server.RouterServer, *server.ManagerServer
 	}
 
 	// Create router
-	shardRouter := router.NewRouter(cat, logger, 10, 5*time.Minute, "replica_ok")
-	
+	shardRouter := router.NewRouter(cat, logger, 10, 5*time.Minute, "replica_ok", config.PricingConfig{Tier: "pro"})
+
 	// Create resharder
 	resharderInstance := resharder.NewResharder(cat, logger)
-	
+
 	// Create manager
-	shardManager := manager.NewManager(cat, logger, resharderInstance)
+	shardManager := manager.NewManager(cat, logger, resharderInstance, config.PricingConfig{Tier: "pro"})
 
 	// Create config
 	cfg := &config.Config{
@@ -74,7 +74,7 @@ func TestRouterHealthEndpoint(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/v1/health", nil)
 	w := httptest.NewRecorder()
-	
+
 	// Get handler from server
 	routerSrv.Handler().ServeHTTP(w, req)
 
@@ -99,7 +99,7 @@ func TestManagerHealthEndpoint(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/api/v1/health", nil)
 	w := httptest.NewRecorder()
-	
+
 	managerSrv.Handler().ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -147,7 +147,7 @@ func TestCreateShard(t *testing.T) {
 	if shard.ID == "" {
 		t.Error("Expected shard ID to be set")
 	}
-	
+
 	if shard.Name != shardReq.Name {
 		t.Errorf("Expected shard name %s, got %s", shardReq.Name, shard.Name)
 	}
@@ -310,4 +310,3 @@ func TestErrorHandling(t *testing.T) {
 		t.Error("Expected error field in error response")
 	}
 }
-

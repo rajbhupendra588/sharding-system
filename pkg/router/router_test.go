@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sharding-system/pkg/config"
 	"github.com/sharding-system/pkg/models"
 	"go.uber.org/zap/zaptest"
 )
@@ -21,7 +22,7 @@ func NewMockCatalog() *MockCatalog {
 	}
 }
 
-func (m *MockCatalog) GetShard(key string) (*models.Shard, error) {
+func (m *MockCatalog) GetShard(key string, clientAppID string) (*models.Shard, error) {
 	// Simple mock: return first shard for any key
 	for _, shard := range m.shards {
 		return shard, nil
@@ -37,7 +38,7 @@ func (m *MockCatalog) GetShardByID(shardID string) (*models.Shard, error) {
 	return shard, nil
 }
 
-func (m *MockCatalog) ListShards() ([]models.Shard, error) {
+func (m *MockCatalog) ListShards(clientAppID string) ([]models.Shard, error) {
 	shards := make([]models.Shard, 0, len(m.shards))
 	for _, shard := range m.shards {
 		shards = append(shards, *shard)
@@ -72,7 +73,7 @@ func (m *MockCatalog) Watch(ctx context.Context) (<-chan *models.ShardCatalog, e
 func TestRouter_GetShardForKey(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
-	
+
 	shard := &models.Shard{
 		ID:              "shard1",
 		Name:            "test-shard",
@@ -80,10 +81,10 @@ func TestRouter_GetShardForKey(t *testing.T) {
 		Status:          "active",
 	}
 	catalog.CreateShard(shard)
-	
-	router := NewRouter(catalog, logger, 10, 5*time.Minute, "primary")
-	
-	shardID, err := router.GetShardForKey("test-key")
+
+	router := NewRouter(catalog, logger, 10, 5*time.Minute, "primary", config.PricingConfig{Tier: "free"})
+
+	shardID, err := router.GetShardForKey("test-key", "")
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -95,10 +96,10 @@ func TestRouter_GetShardForKey(t *testing.T) {
 func TestRouter_GetShardForKey_NoShard(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
-	
-	router := NewRouter(catalog, logger, 10, 5*time.Minute, "primary")
-	
-	_, err := router.GetShardForKey("test-key")
+
+	router := NewRouter(catalog, logger, 10, 5*time.Minute, "primary", config.PricingConfig{Tier: "free"})
+
+	_, err := router.GetShardForKey("test-key", "")
 	if err == nil {
 		t.Error("Expected error when no shard exists")
 	}
@@ -107,9 +108,9 @@ func TestRouter_GetShardForKey_NoShard(t *testing.T) {
 func TestRouter_Close(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
-	
-	router := NewRouter(catalog, logger, 10, 5*time.Minute, "primary")
-	
+
+	router := NewRouter(catalog, logger, 10, 5*time.Minute, "primary", config.PricingConfig{Tier: "free"})
+
 	// Close should not panic
 	err := router.Close()
 	if err != nil {
@@ -120,9 +121,10 @@ func TestRouter_Close(t *testing.T) {
 func TestRouter_NewRouter(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	catalog := NewMockCatalog()
-	
-	router := NewRouter(catalog, logger, 10, 5*time.Minute, "replica_ok")
-	
+
+	pricingConfig := config.PricingConfig{Tier: "free"}
+	router := NewRouter(catalog, logger, 10, 5*time.Minute, "replica_ok", pricingConfig)
+
 	if router == nil {
 		t.Fatal("Expected non-nil router")
 	}
@@ -139,4 +141,3 @@ func TestRouter_NewRouter(t *testing.T) {
 
 // Note: ExecuteQuery tests would require a real database connection
 // or a more sophisticated mock. For unit tests, we focus on the routing logic.
-

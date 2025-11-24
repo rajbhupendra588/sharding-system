@@ -1,6 +1,6 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Users, Database } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -9,6 +9,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import { formatDate, formatRelativeTime } from '@/lib/utils';
+import { useClientApps } from '@/features/clientApp';
 import { useState } from 'react';
 import type { PromoteReplicaRequest } from '@/types';
 
@@ -26,6 +27,9 @@ export default function ShardDetail() {
     enabled: !!id,
     refetchInterval: 10000,
   });
+
+  const { data: clientApps } = useClientApps();
+  const clientApp = shard?.client_app_id ? clientApps?.find(app => app.id === shard.client_app_id) : null;
 
   const deleteMutation = useMutation({
     mutationFn: () => apiClient.deleteShard(id!),
@@ -103,6 +107,20 @@ export default function ShardDetail() {
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h2>
           <dl className="space-y-3">
+            {shard.client_app_id && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Client Application</dt>
+                <dd className="mt-1">
+                  <Link
+                    to={`/client-apps?filter=${shard.client_app_id}`}
+                    className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>{clientApp?.name || shard.client_app_id.substring(0, 8)}</span>
+                  </Link>
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
               <dd className="mt-1">
@@ -136,12 +154,18 @@ export default function ShardDetail() {
           </dl>
         </div>
 
-        {/* Endpoints */}
+        {/* Database & Endpoints */}
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Endpoints</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Database & Endpoints
+          </h2>
           <div className="space-y-4">
             <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Primary Endpoint</dt>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                Primary Database
+              </dt>
               <dd className="text-sm text-gray-900 dark:text-gray-300 font-mono bg-gray-50 dark:bg-gray-800 p-2 rounded break-all">
                 {shard.primary_endpoint}
               </dd>

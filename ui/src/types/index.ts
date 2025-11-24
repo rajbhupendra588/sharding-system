@@ -6,6 +6,7 @@
 export interface Shard {
   id: string;
   name: string;
+  client_app_id: string; // Shard belongs to this client application
   hash_range_start?: number;
   hash_range_end?: number;
   primary_endpoint: string;
@@ -33,6 +34,7 @@ export interface ShardCatalog {
 
 export interface CreateShardRequest {
   name: string;
+  client_app_id: string; // Required: Shard belongs to this client application
   primary_endpoint: string;
   replicas: string[];
   vnode_count: number;

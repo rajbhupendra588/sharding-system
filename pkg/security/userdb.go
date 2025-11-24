@@ -83,6 +83,7 @@ func (s *DBUserStore) initSchema() error {
 }
 
 // ensureDefaultUsers creates default users if table is empty
+// NOTE: This is now skipped - users must be set up via the setup endpoint
 func (s *DBUserStore) ensureDefaultUsers() error {
 	var count int
 	err := s.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
@@ -94,34 +95,8 @@ func (s *DBUserStore) ensureDefaultUsers() error {
 		return nil // Users already exist
 	}
 
-	// Insert default users
-	defaultUsers := []*User{
-		{
-			Username:     "admin",
-			PasswordHash: "$2a$10$LtlhX7.r1Rf9Fl7XjR9VKeaZvwU7PJK6tlWF5rXdxe1fg55wurAnW", // admin123
-			Roles:        []string{"admin"},
-			Active:       true,
-		},
-		{
-			Username:     "operator",
-			PasswordHash: "$2a$10$oDZulSnupJh0OdVrJImYNO/HrxjmUx8QA.ICMSA/Pdskkdwd68.bu", // operator123
-			Roles:        []string{"operator"},
-			Active:       true,
-		},
-		{
-			Username:     "viewer",
-			PasswordHash: "$2a$10$QyJBIVEeUVYYYdRELwpeLe7E5y2vvDIWdIMlIoXOjQCYWj2ozssDG", // viewer123
-			Roles:        []string{"viewer"},
-			Active:       true,
-		},
-	}
-
-	for _, user := range defaultUsers {
-		if err := s.AddUser(user); err != nil {
-			s.logger.Warn("failed to add default user", zap.String("username", user.Username), zap.Error(err))
-		}
-	}
-
+	// Don't create default users - require setup via /api/v1/auth/setup
+	s.logger.Info("no users found - system requires initial admin setup via /api/v1/auth/setup")
 	return nil
 }
 
@@ -261,6 +236,40 @@ func (s *DBUserStore) recordSuccessfulLogin(username string) {
 
 // AddUser adds a new user
 func (s *DBUserStore) AddUser(user *User) error {
+	// Check if user is being added as admin
+	isAdmin := false
+	for _, role := range user.Roles {
+		if role == "admin" {
+			isAdmin = true
+			break
+		}
+	}
+
+	// Enforce maximum of 2 admins
+	if isAdmin {
+		adminCount, err := s.GetAdminCount()
+		if err != nil {
+			return fmt.Errorf("failed to check admin count: %w", err)
+		}
+
+		// Check if this user already exists and is an admin
+		existingUser, err := s.GetUser(user.Username)
+		isExistingAdmin := false
+		if err == nil && existingUser != nil {
+			for _, role := range existingUser.Roles {
+				if role == "admin" {
+					isExistingAdmin = true
+					break
+				}
+			}
+		}
+
+		// If adding a new admin (not updating existing admin), check limit
+		if !isExistingAdmin && adminCount >= 2 {
+			return fmt.Errorf("maximum of 2 admin users allowed (current: %d)", adminCount)
+		}
+	}
+
 	rolesJSON, err := json.Marshal(user.Roles)
 	if err != nil {
 		return fmt.Errorf("failed to marshal roles: %w", err)
@@ -286,6 +295,31 @@ func (s *DBUserStore) AddUser(user *User) error {
 	s.mu.Unlock()
 
 	return nil
+}
+
+// GetAdminCount returns the number of active admin users
+func (s *DBUserStore) GetAdminCount() (int, error) {
+	var count int
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) 
+		FROM users 
+		WHERE active = true 
+		AND 'admin' = ANY(SELECT jsonb_array_elements_text(roles))
+	`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count admins: %w", err)
+	}
+	return count, nil
+}
+
+// IsSetupRequired checks if the system needs initial setup (no users exist)
+func (s *DBUserStore) IsSetupRequired() (bool, error) {
+	var count int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check setup status: %w", err)
+	}
+	return count == 0, nil
 }
 
 // Close closes the database connection

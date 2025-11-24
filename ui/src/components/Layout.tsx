@@ -8,19 +8,24 @@ import {
   BarChart3,
   Settings,
   Menu,
-  X
+  X,
+  CreditCard,
+  Users
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/store/auth-store';
 import ThemeToggle from './ThemeToggle';
+import logo from '../assets/logo.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Shards', href: '/shards', icon: Database },
+  { name: 'Client Apps', href: '/client-apps', icon: Users },
   { name: 'Query Executor', href: '/query', icon: PlayCircle },
   { name: 'Resharding', href: '/resharding', icon: GitBranch },
   { name: 'Health', href: '/health', icon: Heart },
   { name: 'Metrics', href: '/metrics', icon: BarChart3 },
+  { name: 'Pricing', href: '/pricing', icon: CreditCard },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -53,7 +58,10 @@ export default function Layout() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-xl font-bold text-primary-600">Sharding System</h1>
+            <div className="flex items-center space-x-3">
+              <img src={logo} alt="ShardScale" className="h-8 w-8" />
+              <span className="text-xl font-bold text-primary-600 dark:text-primary-400">ShardScale</span>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
               className="lg:hidden text-gray-500 hover:text-gray-700"
@@ -73,8 +81,8 @@ export default function Layout() {
                   to={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${isActive
-                      ? 'bg-primary-50 text-primary-700 border border-primary-200 dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800'
-                      : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
+                    ? 'bg-primary-50 text-primary-700 border border-primary-200 dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800'
+                    : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
                     }`}
                 >
                   <item.icon className="mr-3 h-5 w-5" />

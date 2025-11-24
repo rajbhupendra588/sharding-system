@@ -7,41 +7,72 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sharding-system/pkg/catalog"
-	"github.com/sharding-system/pkg/models"
 	_ "github.com/lib/pq"
+	"github.com/sharding-system/pkg/catalog"
+	"github.com/sharding-system/pkg/config"
+	"github.com/sharding-system/pkg/models"
+	"github.com/sharding-system/pkg/pricing"
 	"go.uber.org/zap"
 )
 
 // Router routes queries to appropriate shards
 type Router struct {
-	catalog      catalog.Catalog
-	logger       *zap.Logger
-	connections  map[string]*sql.DB
-	mu           sync.RWMutex
-	maxConns     int
-	connTTL      time.Duration
+	catalog       catalog.Catalog
+	logger        *zap.Logger
+	connections   map[string]*sql.DB
+	mu            sync.RWMutex
+	maxConns      int
+	connTTL       time.Duration
 	replicaPolicy string
+	pricingConfig config.PricingConfig
+	rpsCounter    int
+	lastReset     time.Time
 }
 
 // NewRouter creates a new router instance
-func NewRouter(catalog catalog.Catalog, logger *zap.Logger, maxConns int, connTTL time.Duration, replicaPolicy string) *Router {
+func NewRouter(catalog catalog.Catalog, logger *zap.Logger, maxConns int, connTTL time.Duration, replicaPolicy string, pricingConfig config.PricingConfig) *Router {
 	return &Router{
-		catalog:      catalog,
-		logger:       logger,
-		connections:  make(map[string]*sql.DB),
-		maxConns:     maxConns,
-		connTTL:      connTTL,
+		catalog:       catalog,
+		logger:        logger,
+		connections:   make(map[string]*sql.DB),
+		maxConns:      maxConns,
+		connTTL:       connTTL,
 		replicaPolicy: replicaPolicy,
+		pricingConfig: pricingConfig,
+		lastReset:     time.Now(),
 	}
 }
 
 // ExecuteQuery executes a query on the appropriate shard
-func (r *Router) ExecuteQuery(ctx context.Context, req *models.QueryRequest) (*models.QueryResponse, error) {
+func (r *Router) ExecuteQuery(ctx context.Context, req *models.QueryRequest, clientAppID string) (*models.QueryResponse, error) {
+	limits := pricing.GetLimits(r.pricingConfig.Tier)
+
+	// Check Consistency Limit
+	if req.Consistency == "strong" && !limits.AllowStrongConsistency {
+		return nil, fmt.Errorf("strong consistency not allowed for tier %s", limits.Name)
+	}
+
+	// Check RPS Limit
+	if limits.MaxRPS != -1 {
+		r.mu.Lock()
+		now := time.Now()
+		if now.Sub(r.lastReset) > time.Second {
+			r.rpsCounter = 0
+			r.lastReset = now
+		}
+		r.rpsCounter++
+		currentRPS := r.rpsCounter
+		r.mu.Unlock()
+
+		if currentRPS > limits.MaxRPS {
+			return nil, fmt.Errorf("rate limit exceeded for tier %s (max %d RPS)", limits.Name, limits.MaxRPS)
+		}
+	}
+
 	start := time.Now()
 
-	// Get shard for the key
-	shard, err := r.catalog.GetShard(req.ShardKey)
+	// Get shard for the key, scoped to client application
+	shard, err := r.catalog.GetShard(req.ShardKey, clientAppID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shard: %w", err)
 	}
@@ -109,9 +140,9 @@ func (r *Router) ExecuteQuery(ctx context.Context, req *models.QueryRequest) (*m
 	}, nil
 }
 
-// GetShardForKey returns the shard ID for a given key
-func (r *Router) GetShardForKey(key string) (string, error) {
-	shard, err := r.catalog.GetShard(key)
+// GetShardForKey returns the shard ID for a given key, scoped to client application
+func (r *Router) GetShardForKey(key string, clientAppID string) (string, error) {
+	shard, err := r.catalog.GetShard(key, clientAppID)
 	if err != nil {
 		return "", err
 	}
@@ -176,4 +207,3 @@ func (r *Router) Close() error {
 
 	return nil
 }
-
