@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: users-cluster-3
+  labels:
+    app: user-service
+    database: postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+        database: postgresql
+      annotations:
+        sharding-system/discover: "true"
+        sharding-system/database-type: "postgresql"
+    spec:
+      containers:
+      - name: user-service
+        image: user-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DB_HOST
+          value: postgres.users-cluster-3.svc.cluster.local
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: postgres
+        - name: DB_PASSWORD
+          value: postgres123
+        - name: DB_NAME
+          value: users_db
+        - name: DATABASE_URL
+          value: postgres://postgres:postgres123@postgres.users-cluster-3.svc.cluster.local:5432/users_db
+        - name: DATABASE_HOST
+          value: postgres.users-cluster-3.svc.cluster.local
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_NAME
+          value: users_db
+        - name: DATABASE_USER
+          value: postgres
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: users-cluster-3
+spec:
+  selector:
+    app: user-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+

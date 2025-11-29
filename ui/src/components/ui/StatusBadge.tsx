@@ -7,15 +7,19 @@ interface StatusBadgeProps {
 }
 
 export default function StatusBadge({ status, className }: StatusBadgeProps) {
+  // Handle edge cases: empty string, numbers, or null/undefined
+  const normalizedStatus = status?.toString().toLowerCase() || 'unknown';
+  const displayText = normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
+  
   return (
     <span
       className={cn(
         'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
-        getStatusBadgeColor(status),
+        getStatusBadgeColor(normalizedStatus),
         className
       )}
     >
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {displayText}
     </span>
   );
 }

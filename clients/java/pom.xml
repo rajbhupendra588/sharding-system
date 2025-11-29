@@ -11,13 +11,19 @@
     <packaging>jar</packaging>
 
     <name>Sharding System Java Client</name>
-    <description>Java client library for Sharding System</description>
+    <description>
+        High-performance Java client for Sharding System.
+        Implements direct database connections with local shard routing - 
+        no proxy in the query path.
+    </description>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.15.2</jackson.version>
+        <hikari.version>5.0.1</hikari.version>
+        <postgresql.version>42.6.0</postgresql.version>
         <junit.version>5.9.2</junit.version>
     </properties>
 
@@ -34,7 +40,21 @@
             <version>${jackson.version}</version>
         </dependency>
 
-        <!-- HTTP Client -->
+        <!-- HikariCP - High-performance connection pool -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${hikari.version}</version>
+        </dependency>
+
+        <!-- PostgreSQL JDBC Driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        </dependency>
+
+        <!-- HTTP Client for Manager API -->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
@@ -68,8 +88,14 @@
                     <target>11</target>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <show>public</show>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
-
-

@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: products-ns
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: products-db-secret
+  namespace: products-ns
+type: Opaque
+stringData:
+  postgres-password: postgres123
+  postgres-user: postgres
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: products-db-config
+  namespace: products-ns
+data:
+  POSTGRES_DB: products_db
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: products-postgres
+  namespace: products-ns
+spec:
+  serviceName: products-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: products-postgres
+  template:
+    metadata:
+      labels:
+        app: products-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: products-db-secret
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: products-db-secret
+              key: postgres-password
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: products-db-config
+              key: POSTGRES_DB
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: products-postgres
+  namespace: products-ns
+spec:
+  selector:
+    app: products-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: products-app
+  namespace: products-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: products-app
+  template:
+    metadata:
+      labels:
+        app: products-app
+    spec:
+      containers:
+      - name: app
+        image: products-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        - name: DB_HOST
+          value: products-postgres.products-ns.svc.cluster.local
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: products-db-secret
+              key: postgres-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: products-db-secret
+              key: postgres-password
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: products-db-config
+              key: POSTGRES_DB
+        - name: DATABASE_URL
+          value: postgres://postgres:postgres123@products-postgres.products-ns.svc.cluster.local:5432/products_db
+        - name: DATABASE_HOST
+          value: products-postgres.products-ns.svc.cluster.local
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_NAME
+          value: products_db
+        - name: DATABASE_USER
+          value: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: products-app
+  namespace: products-ns
+spec:
+  selector:
+    app: products-app
+  ports:
+  - port: 8080
+    targetPort: 8080
+

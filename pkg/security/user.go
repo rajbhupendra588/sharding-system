@@ -2,6 +2,8 @@ package security
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -11,6 +13,10 @@ type User struct {
 	PasswordHash string
 	Roles        []string
 	Active       bool
+	// OAuth fields
+	OAuthProvider string // "google", "github", "facebook", or empty for password-based
+	OAuthID       string // OAuth provider user ID
+	Email         string // User email (from OAuth or manual)
 }
 
 // UserStore manages users
@@ -149,5 +155,106 @@ func (s *UserStore) IsSetupRequired() (bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.users) == 0, nil
+}
+
+// GetUserByOAuth retrieves a user by OAuth provider and ID
+func (s *UserStore) GetUserByOAuth(provider, oauthID string) (*User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	for _, user := range s.users {
+		if user.OAuthProvider == provider && user.OAuthID == oauthID {
+			if !user.Active {
+				return nil, errors.New("user is inactive")
+			}
+			return user, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+// GetUserByEmail retrieves a user by email
+func (s *UserStore) GetUserByEmail(email string) (*User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	for _, user := range s.users {
+		if user.Email == email {
+			if !user.Active {
+				return nil, errors.New("user is inactive")
+			}
+			return user, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+// CreateOrUpdateOAuthUser creates or updates a user from OAuth info
+func (s *UserStore) CreateOrUpdateOAuthUser(oauthInfo *OAuthUserInfo) (*User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	// Try to find existing user by OAuth provider/ID
+	for _, user := range s.users {
+		if user.OAuthProvider == string(oauthInfo.Provider) && user.OAuthID == oauthInfo.ID {
+			// Update email if needed
+			if oauthInfo.Email != "" && user.Email != oauthInfo.Email {
+				user.Email = oauthInfo.Email
+			}
+			return user, nil
+		}
+	}
+	
+	// Try to find by email to link accounts
+	if oauthInfo.Email != "" {
+		for _, user := range s.users {
+			if user.Email == oauthInfo.Email {
+				// Link OAuth to existing account
+				user.OAuthProvider = string(oauthInfo.Provider)
+				user.OAuthID = oauthInfo.ID
+				return user, nil
+			}
+		}
+	}
+	
+	// Create new user
+	// Generate username from email or name
+	username := oauthInfo.Email
+	if username == "" {
+		username = oauthInfo.Name
+	}
+	if username == "" {
+		username = fmt.Sprintf("%s_%s", oauthInfo.Provider, oauthInfo.ID)
+	}
+	// Clean username (remove @ and special chars, make lowercase)
+	username = strings.ToLower(strings.ReplaceAll(username, "@", "_"))
+	username = strings.ReplaceAll(username, " ", "_")
+	
+	// Ensure username is unique
+	baseUsername := username
+	counter := 1
+	for {
+		if _, exists := s.users[username]; !exists {
+			break // Username is available
+		}
+		username = fmt.Sprintf("%s_%d", baseUsername, counter)
+		counter++
+	}
+	
+	// Default role for new OAuth users
+	roles := []string{"viewer"}
+	
+	newUser := &User{
+		Username:      username,
+		PasswordHash:  "", // No password for OAuth users
+		Roles:         roles,
+		Active:        true,
+		OAuthProvider: string(oauthInfo.Provider),
+		OAuthID:       oauthInfo.ID,
+		Email:         oauthInfo.Email,
+	}
+	
+	s.users[username] = newUser
+	return newUser, nil
 }
 

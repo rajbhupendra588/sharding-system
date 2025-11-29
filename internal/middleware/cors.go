@@ -92,29 +92,48 @@ func CORS(next http.Handler) http.Handler {
 		// Check if origin is allowed
 		allowed, allowedOrigin := config.isOriginAllowed(origin)
 		
-		if allowed && allowedOrigin != "" {
+		// Handle unauthorized origins - reject before setting any headers
+		if !allowed && origin != "" {
+			// Explicitly reject unauthorized origin (MAANG standard: fail secure)
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		// Handle preflight OPTIONS requests first
+		// Preflight requests MUST include CORS headers if they have an Origin header
+		if r.Method == "OPTIONS" {
+			// Set CORS headers for allowed cross-origin preflight requests
+			if origin != "" && allowed && allowedOrigin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+				
+				// Set credentials header only if not using wildcard (MAANG standard)
+				if allowedOrigin != "*" {
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+				}
+				
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-Token")
+				w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours (MAANG standard)
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		// Set CORS headers for allowed cross-origin requests (non-OPTIONS)
+		// For same-origin requests (empty origin), CORS headers are not needed
+		if origin != "" && allowed && allowedOrigin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 			
 			// Set credentials header only if not using wildcard (MAANG standard)
 			if allowedOrigin != "*" {
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 			}
-		} else if !allowed && origin != "" {
-			// Explicitly reject unauthorized origin (MAANG standard: fail secure)
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
 
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-Token")
-		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Type, X-Request-ID")
-		w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours (MAANG standard)
-
-		// Handle preflight OPTIONS requests
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusNoContent)
-			return
+			// Set CORS headers for cross-origin requests
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-Token")
+			w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Type, X-Request-ID")
+			w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours (MAANG standard)
 		}
 
 		// Call the next handler

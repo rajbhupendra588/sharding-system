@@ -21,9 +21,12 @@
     "max_connections": 100,
     "connection_ttl": "5m"
   },
+  "pricing": {
+    "tier": "enterprise"
+  },
   "security": {
     "enable_tls": false,
-    "enable_rbac": true,
+    "enable_rbac": false,
     "audit_log_path": "/var/log/sharding/audit.log",
     "user_database_dsn": ""
   },

@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: inventory-ns
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: inventory-db-secret
+  namespace: inventory-ns
+type: Opaque
+stringData:
+  postgres-password: postgres123
+  postgres-user: postgres
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-db-config
+  namespace: inventory-ns
+data:
+  POSTGRES_DB: inventory_db
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: inventory-postgres
+  namespace: inventory-ns
+spec:
+  serviceName: inventory-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-postgres
+  template:
+    metadata:
+      labels:
+        app: inventory-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: inventory-db-secret
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: inventory-db-secret
+              key: postgres-password
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: inventory-db-config
+              key: POSTGRES_DB
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-postgres
+  namespace: inventory-ns
+spec:
+  selector:
+    app: inventory-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-app
+  namespace: inventory-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-app
+  template:
+    metadata:
+      labels:
+        app: inventory-app
+    spec:
+      containers:
+      - name: app
+        image: inventory-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        - name: DB_HOST
+          value: inventory-postgres.inventory-ns.svc.cluster.local
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: inventory-db-secret
+              key: postgres-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: inventory-db-secret
+              key: postgres-password
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: inventory-db-config
+              key: POSTGRES_DB
+        - name: DATABASE_URL
+          value: postgres://postgres:postgres123@inventory-postgres.inventory-ns.svc.cluster.local:5432/inventory_db
+        - name: DATABASE_HOST
+          value: inventory-postgres.inventory-ns.svc.cluster.local
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_NAME
+          value: inventory_db
+        - name: DATABASE_USER
+          value: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-app
+  namespace: inventory-ns
+spec:
+  selector:
+    app: inventory-app
+  ports:
+  - port: 8080
+    targetPort: 8080
+

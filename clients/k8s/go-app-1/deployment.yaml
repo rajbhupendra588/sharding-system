@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce-cluster-1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ecommerce-db-secret
+  namespace: ecommerce-cluster-1
+type: Opaque
+stringData:
+  postgres-password: postgres123
+  postgres-user: postgres
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-app-config
+  namespace: ecommerce-cluster-1
+data:
+  DB_HOST: ecommerce-postgres
+  DB_PORT: "5432"
+  DB_NAME: ecommerce_db
+  DB_USER: postgres
+  PORT: "8080"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ecommerce-postgres
+  namespace: ecommerce-cluster-1
+spec:
+  serviceName: ecommerce-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ecommerce-postgres
+  template:
+    metadata:
+      labels:
+        app: ecommerce-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_DB
+          value: ecommerce_db
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: ecommerce-db-secret
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ecommerce-db-secret
+              key: postgres-password
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecommerce-postgres
+  namespace: ecommerce-cluster-1
+spec:
+  selector:
+    app: ecommerce-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecommerce-service
+  namespace: ecommerce-cluster-1
+  labels:
+    app: ecommerce-service
+    database: ecommerce_db
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecommerce-service
+  template:
+    metadata:
+      labels:
+        app: ecommerce-service
+        database: ecommerce_db
+      annotations:
+        database.host: ecommerce-postgres
+        database.port: "5432"
+        database.name: ecommerce_db
+        database.user: postgres
+    spec:
+      containers:
+      - name: app
+        image: go-app-1:latest
+        envFrom:
+        - configMapRef:
+            name: ecommerce-app-config
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ecommerce-db-secret
+              key: postgres-password
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecommerce-service
+  namespace: ecommerce-cluster-1
+spec:
+  selector:
+    app: ecommerce-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+

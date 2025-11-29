@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Plus, Search, Database, Activity, Clock, Server, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Users, Plus, Search, Database, Activity, Clock, Server, RefreshCw, CheckCircle2, AlertCircle, Trash2, CheckSquare, Square } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import Modal from '@/components/ui/Modal';
 import { useQuery } from '@tanstack/react-query';
 import { useClientApps } from '@/features/clientApp';
 import { useShards } from '@/features/shard';
@@ -9,6 +12,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import Button from '@/components/ui/Button';
 import { formatRelativeTime, formatDate } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
+import ConnectAppModal from '@/components/client-app/ConnectAppModal';
 
 interface DiscoveredApp {
   namespace: string;
@@ -26,10 +30,44 @@ interface DiscoveredApp {
 
 export default function ClientApps() {
   const { data: clientApps, isLoading, error, refetch } = useClientApps();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDiscoveredApps, setShowDiscoveredApps] = useState(true);
   const [newApp, setNewApp] = useState({ name: '', description: '', database_name: '', key_prefix: '' });
+  const [deleteAppId, setDeleteAppId] = useState<string | null>(null);
+  const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set());
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [connectApp, setConnectApp] = useState<{ name: string; database: string } | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiClient.deleteClientApp(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientApps'] });
+      setDeleteAppId(null);
+      toast.success('Client application de-registered successfully');
+      refetch();
+    },
+    onError: (error: { message: string }) => {
+      toast.error(`Failed to de-register application: ${error.message}`);
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map(id => apiClient.deleteClientApp(id)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientApps'] });
+      setSelectedApps(new Set());
+      setShowBulkConfirm(false);
+      toast.success('Client applications de-registered successfully');
+      refetch();
+    },
+    onError: (error: { message: string }) => {
+      toast.error(`Failed to de-register applications: ${error.message}`);
+    },
+  });
 
   // Fetch discovered applications from Kubernetes
   const { data: discoveredApps, isLoading: discovering, refetch: refetchDiscovery } = useQuery<DiscoveredApp[]>({
@@ -141,16 +179,47 @@ export default function ClientApps() {
     }
   };
 
+  const toggleAppSelection = (appId: string) => {
+    const newSelected = new Set(selectedApps);
+    if (newSelected.has(appId)) {
+      newSelected.delete(appId);
+    } else {
+      newSelected.add(appId);
+    }
+    setSelectedApps(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedApps.size === filteredApps.length) {
+      setSelectedApps(new Set());
+    } else {
+      setSelectedApps(new Set(filteredApps.map(a => a.id)));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Client Applications</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage client applications using the sharding system
+            {selectedApps.size > 0
+              ? `${selectedApps.size} application${selectedApps.size !== 1 ? 's' : ''} selected`
+              : 'Manage client applications using the sharding system'
+            }
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {selectedApps.size > 0 && (
+            <Button
+              variant="danger"
+              onClick={() => setShowBulkConfirm(true)}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              De-register ({selectedApps.size})
+            </Button>
+          )}
           <Button
             variant="secondary"
             onClick={() => {
@@ -279,117 +348,187 @@ export default function ClientApps() {
 
       {/* Client Apps List */}
       {filteredApps.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {filteredApps.map((app) => (
-            <div key={app.id} className="card hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
-                    <Users className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{app.name}</h3>
-                    {app.description && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{app.description}</p>
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={toggleSelectAll}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              {selectedApps.size === filteredApps.length && filteredApps.length > 0 ? (
+                <CheckSquare className="h-5 w-5 text-primary-600" />
+              ) : (
+                <Square className="h-5 w-5 text-gray-400" />
+              )}
+              {selectedApps.size === filteredApps.length && filteredApps.length > 0 ? 'Deselect All' : 'Select All'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {filteredApps.map((app) => (
+              <div key={app.id} className="card hover:shadow-lg transition-shadow relative">
+                <div className="absolute top-4 right-4">
+                  <button
+                    onClick={() => toggleAppSelection(app.id)}
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                  >
+                    {selectedApps.has(app.id) ? (
+                      <CheckSquare className="h-5 w-5 text-primary-600" />
+                    ) : (
+                      <Square className="h-5 w-5 text-gray-400" />
                     )}
-                    <div className="flex gap-2 mt-1">
-                      {app.namespace && (
-                        <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
-                          ns: {app.namespace}
-                        </span>
+                  </button>
+                </div>
+                <div className="flex items-start justify-between mb-4 pr-10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+                      <Users className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{app.name}</h3>
+                      {app.description && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{app.description}</p>
                       )}
-                      {app.cluster_name && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 rounded text-blue-600 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
-                          cluster: {app.cluster_name}
-                        </span>
-                      )}
+                      <div className="flex gap-2 mt-1">
+                        {app.namespace && (
+                          <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                            ns: {app.namespace}
+                          </span>
+                        )}
+                        {app.cluster_name && (
+                          <span className="text-xs px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 rounded text-blue-600 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                            cluster: {app.cluster_name}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <StatusBadge status={app.status === 'active' ? 'healthy' : 'inactive'} />
-              </div>
-
-              <div className="space-y-3">
-                {app.database_name && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Database className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-500 dark:text-gray-400">Database:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{app.database_name}</span>
-                  </div>
-                )}
-                {app.key_prefix && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Key Prefix:</span>
-                    <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-900 dark:text-gray-100">
-                      {app.key_prefix}
-                    </code>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
-                      <Database className="h-4 w-4" />
-                      Shards Used
-                    </div>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {app.shard_ids?.length || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
-                      <Activity className="h-4 w-4" />
-                      Requests
-                    </div>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {app.request_count?.toLocaleString() || 0}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Last seen: {formatRelativeTime(app.last_seen)}
-                  </div>
-                  <span>Created: {formatDate(app.created_at)}</span>
-                </div>
-
-                {app.shard_ids && app.shard_ids.length > 0 && (
-                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Shards & Databases:</p>
-                      <Link
-                        to={`/shards?filter=${app.id}`}
-                        className="text-xs text-primary-600 hover:text-primary-700"
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={app.status === 'active' ? 'healthy' : 'inactive'} />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setConnectApp({ name: app.name, database: app.database_name || '' })}
                       >
-                        View all →
-                      </Link>
+                        <Database className="h-4 w-4 mr-2" />
+                        Connect
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => setDeleteAppId(app.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <ShardListForClient clientAppId={app.id} shardIds={app.shard_ids} />
                   </div>
-                )}
+                </div>
+                {/* The original second delete button is removed as it's now part of the actions above */}
+
+                <div className="space-y-3">
+                  {app.database_name && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Database className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-500 dark:text-gray-400">Database:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{app.database_name}</span>
+                    </div>
+                  )}
+                  {app.key_prefix && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Key Prefix:</span>
+                      <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-900 dark:text-gray-100">
+                        {app.key_prefix}
+                      </code>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div>
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        <Database className="h-4 w-4" />
+                        Shards Used
+                      </div>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {app.shard_ids?.length || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        <Activity className="h-4 w-4" />
+                        Requests
+                      </div>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {app.request_count?.toLocaleString() || 0}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Last seen: {formatRelativeTime(app.last_seen)}
+                    </div>
+                    <span>Created: {formatDate(app.created_at)}</span>
+                  </div>
+
+                  {app.shard_ids && app.shard_ids.length > 0 && (
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Shards & Databases:</p>
+                        <Link
+                          to={`/shards?filter=${app.id}`}
+                          className="text-xs text-primary-600 hover:text-primary-700"
+                        >
+                          View all →
+                        </Link>
+                      </div>
+                      <ShardListForClient clientAppId={app.id} shardIds={app.shard_ids} />
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       ) : (
-        <div className="card">
-          <div className="text-center py-12">
-            <Users className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No client applications</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {searchQuery ? 'No applications match your search.' : 'Get started by registering a client application.'}
+        <div className="card border-dashed border-2 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <div className="text-center py-12 px-4">
+            <div className="bg-blue-100 dark:bg-blue-900/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Server className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No Registered Applications</h3>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+              {searchQuery
+                ? 'No applications match your search.'
+                : 'De-registering an app only removes it from this list. Your actual applications and databases are still running safely in your Kubernetes cluster.'}
             </p>
+
             {!searchQuery && (
-              <div className="mt-6">
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="btn btn-primary"
+              <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                <Button
+                  onClick={() => {
+                    refetchDiscovery();
+                    setShowDiscoveredApps(true);
+                  }}
+                  disabled={discovering}
+                  className="flex items-center"
                 >
-                  Register Client App
-                </button>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${discovering ? 'animate-spin' : ''}`} />
+                  Scan Cluster for Apps
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Manually Register
+                </Button>
               </div>
+            )}
+
+            {!searchQuery && (
+              <p className="mt-6 text-xs text-gray-500 dark:text-gray-400">
+                Tip: Click "Scan Cluster" to find and re-register your existing applications.
+              </p>
             )}
           </div>
         </div>
@@ -478,6 +617,82 @@ export default function ClientApps() {
           </div>
         </div>
       )}
+
+      {/* De-register Confirmation Modal */}
+      <Modal
+        isOpen={deleteAppId !== null}
+        onClose={() => setDeleteAppId(null)}
+        title="De-register Application"
+        size="sm"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteAppId(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (deleteAppId) {
+                  deleteMutation.mutate(deleteAppId);
+                }
+              }}
+              isLoading={deleteMutation.isPending}
+            >
+              De-register
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          Are you sure you want to de-register this client application?
+          <br /><br />
+          This will remove the application from the Sharding Manager registry. It will <strong>not</strong> delete the actual application or its database.
+        </p>
+      </Modal>
+
+      {/* Bulk De-register Confirmation Modal */}
+      <Modal
+        isOpen={showBulkConfirm}
+        onClose={() => setShowBulkConfirm(false)}
+        title="De-register Applications"
+        size="sm"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setShowBulkConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => bulkDeleteMutation.mutate(Array.from(selectedApps))}
+              isLoading={bulkDeleteMutation.isPending}
+            >
+              De-register {selectedApps.size} Application{selectedApps.size !== 1 ? 's' : ''}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          Are you sure you want to de-register {selectedApps.size} client application{selectedApps.size !== 1 ? 's' : ''}?
+          <br /><br />
+          This will remove the application{selectedApps.size !== 1 ? 's' : ''} from the Sharding Manager registry. It will <strong>not</strong> delete the actual application{selectedApps.size !== 1 ? 's' : ''} or {selectedApps.size !== 1 ? 'their' : 'its'} database.
+        </p>
+      </Modal>
+
+      {/* Connect App Modal */}
+      {connectApp && (
+        <ConnectAppModal
+          isOpen={true}
+          onClose={() => setConnectApp(null)}
+          appName={connectApp.name}
+          databaseName={connectApp.database}
+        />
+      )}
     </div>
   );
 }
@@ -537,4 +752,3 @@ function ShardListForClient({ clientAppId, shardIds }: { clientAppId: string; sh
     </div>
   );
 }
-

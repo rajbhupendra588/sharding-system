@@ -20,6 +20,14 @@ const Metrics = lazy(() => import('./pages/Metrics'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const ClientApps = lazy(() => import('./pages/ClientApps'));
+const Databases = lazy(() => import('./pages/Databases'));
+const DatabaseDetail = lazy(() => import('./pages/DatabaseDetail'));
+const Autoscale = lazy(() => import('./pages/Autoscale'));
+const Branches = lazy(() => import('./pages/Branches'));
+const MultiRegion = lazy(() => import('./pages/MultiRegion'));
+const DisasterRecovery = lazy(() => import('./pages/DisasterRecovery'));
+const PostgresStats = lazy(() => import('./pages/PostgresStats'));
+const ClusterScanner = lazy(() => import('./pages/ClusterScanner'));
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -168,6 +176,86 @@ function AnimatedRoutes() {
               <Suspense fallback={<LoadingSpinner size="lg" />}>
                 <PageTransition>
                   <ClientApps />
+                </PageTransition>
+              </Suspense>
+            }
+          />
+          <Route
+            path="databases"
+            element={
+              <Suspense fallback={<LoadingSpinner size="lg" />}>
+                <PageTransition>
+                  <Databases />
+                </PageTransition>
+              </Suspense>
+            }
+          />
+          <Route
+            path="databases/:id"
+            element={
+              <Suspense fallback={<LoadingSpinner size="lg" />}>
+                <PageTransition>
+                  <DatabaseDetail />
+                </PageTransition>
+              </Suspense>
+            }
+          />
+          <Route
+            path="databases/:dbName/branches"
+            element={
+              <Suspense fallback={<LoadingSpinner size="lg" />}>
+                <PageTransition>
+                  <Branches />
+                </PageTransition>
+              </Suspense>
+            }
+          />
+          <Route
+            path="autoscale"
+            element={
+              <Suspense fallback={<LoadingSpinner size="lg" />}>
+                <PageTransition>
+                  <Autoscale />
+                </PageTransition>
+              </Suspense>
+            }
+          />
+          <Route
+            path="multi-region"
+            element={
+              <Suspense fallback={<LoadingSpinner size="lg" />}>
+                <PageTransition>
+                  <MultiRegion />
+                </PageTransition>
+              </Suspense>
+            }
+          />
+          <Route
+            path="disaster-recovery"
+            element={
+              <Suspense fallback={<LoadingSpinner size="lg" />}>
+                <PageTransition>
+                  <DisasterRecovery />
+                </PageTransition>
+              </Suspense>
+            }
+          />
+          <Route
+            path="postgres-stats"
+            element={
+              <Suspense fallback={<LoadingSpinner size="lg" />}>
+                <PageTransition>
+                  <PostgresStats />
+                </PageTransition>
+              </Suspense>
+            }
+          />
+          <Route
+            path="cluster-scanner"
+            element={
+              <Suspense fallback={<LoadingSpinner size="lg" />}>
+                <PageTransition>
+                  <ClusterScanner />
                 </PageTransition>
               </Suspense>
             }

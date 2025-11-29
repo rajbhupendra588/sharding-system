@@ -32,6 +32,10 @@ export class ShardRepository {
   async promoteReplica(shardId: string, request: PromoteReplicaRequest): Promise<void> {
     return this.client.post(`/shards/${shardId}/promote`, request);
   }
+
+  async updateStatus(id: string, status: string): Promise<void> {
+    return this.client.put(`/shards/${id}/status`, { status });
+  }
 }
 
 export const shardRepository = new ShardRepository();

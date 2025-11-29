@@ -19,9 +19,12 @@ class AppConfigManager {
   }
 
   private loadConfig(): AppConfig {
+    // In K8s, use relative URLs - nginx will proxy to services
+    const managerUrl = localStorage.getItem(STORAGE_KEYS.MANAGER_URL) || API_CONFIG.MANAGER_BASE_URL || '';
+    const routerUrl = localStorage.getItem(STORAGE_KEYS.ROUTER_URL) || API_CONFIG.ROUTER_BASE_URL || '';
     return {
-      managerUrl: localStorage.getItem(STORAGE_KEYS.MANAGER_URL) || API_CONFIG.MANAGER_BASE_URL,
-      routerUrl: localStorage.getItem(STORAGE_KEYS.ROUTER_URL) || API_CONFIG.ROUTER_BASE_URL,
+      managerUrl: managerUrl || '', // Empty string = relative URL
+      routerUrl: routerUrl || '', // Empty string = relative URL
       refreshInterval: parseInt(
         localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL) || '10000',
         10

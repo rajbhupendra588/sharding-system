@@ -4,8 +4,9 @@
  */
 
 export const API_CONFIG = {
-  MANAGER_BASE_URL: import.meta.env.VITE_MANAGER_URL || 'http://localhost:8081',
-  ROUTER_BASE_URL: import.meta.env.VITE_ROUTER_URL || 'http://localhost:8080',
+  // Use relative URLs in K8s - nginx will proxy them
+  MANAGER_BASE_URL: import.meta.env.VITE_MANAGER_URL || '',
+  ROUTER_BASE_URL: import.meta.env.VITE_ROUTER_URL || '',
   MANAGER_API_PREFIX: '/api/v1',
   ROUTER_API_PREFIX: '/v1',
   TIMEOUT: 30000,

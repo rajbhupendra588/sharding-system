@@ -1,0 +1,45 @@
+# Build stage
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies
+RUN apk add --no-cache git
+
+# Copy go mod files
+COPY go.mod go.sum ./
+ENV GOTOOLCHAIN=auto
+RUN go mod download
+
+# Copy source
+COPY . .
+
+# Ensure all dependencies are resolved
+RUN go mod tidy
+
+# Build
+ENV GOTOOLCHAIN=auto
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o proxy ./cmd/proxy
+
+# Final stage
+FROM alpine:3.18
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /app
+
+COPY --from=builder /app/proxy .
+COPY --from=builder /app/configs/proxy.json ./configs/
+
+# Proxy port (PostgreSQL protocol)
+EXPOSE 5432
+# Admin API port
+EXPOSE 8082
+
+ENV PROXY_CONFIG_PATH=/app/configs/proxy.json
+ENV PROXY_LISTEN_ADDR=:5432
+ENV PROXY_ADMIN_ADDR=:8082
+ENV SHARDING_MANAGER_URL=http://manager:8081
+
+CMD ["./proxy"]
+

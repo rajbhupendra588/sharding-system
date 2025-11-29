@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,18 +65,43 @@ func (s *DBUserStore) initSchema() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS users (
 		username VARCHAR(255) PRIMARY KEY,
-		password_hash VARCHAR(255) NOT NULL,
+		password_hash VARCHAR(255),
 		roles JSONB NOT NULL DEFAULT '[]'::jsonb,
 		active BOOLEAN NOT NULL DEFAULT true,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		last_login_at TIMESTAMP,
 		failed_login_attempts INTEGER NOT NULL DEFAULT 0,
-		locked_until TIMESTAMP
+		locked_until TIMESTAMP,
+		oauth_provider VARCHAR(50),
+		oauth_id VARCHAR(255),
+		email VARCHAR(255)
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_users_active ON users(active) WHERE active = true;
 	CREATE INDEX IF NOT EXISTS idx_users_locked ON users(locked_until) WHERE locked_until IS NOT NULL;
+	CREATE INDEX IF NOT EXISTS idx_users_oauth ON users(oauth_provider, oauth_id) WHERE oauth_provider IS NOT NULL;
+	CREATE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
+	
+	-- Add OAuth columns if they don't exist (for existing databases)
+	DO $$ 
+	BEGIN
+		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='oauth_provider') THEN
+			ALTER TABLE users ADD COLUMN oauth_provider VARCHAR(50);
+		END IF;
+		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='oauth_id') THEN
+			ALTER TABLE users ADD COLUMN oauth_id VARCHAR(255);
+		END IF;
+		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='email') THEN
+			ALTER TABLE users ADD COLUMN email VARCHAR(255);
+		END IF;
+		IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='idx_users_oauth') THEN
+			CREATE INDEX idx_users_oauth ON users(oauth_provider, oauth_id) WHERE oauth_provider IS NOT NULL;
+		END IF;
+		IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='idx_users_email') THEN
+			CREATE INDEX idx_users_email ON users(email) WHERE email IS NOT NULL;
+		END IF;
+	END $$;
 	`
 
 	_, err := s.db.Exec(query)
@@ -111,15 +137,18 @@ func (s *DBUserStore) GetUser(username string) (*User, error) {
 	s.mu.RUnlock()
 
 	// Query database
-	var passwordHash string
+	var passwordHash sql.NullString
 	var rolesJSON []byte
 	var active bool
 	var lockedUntil sql.NullTime
+	var oauthProvider sql.NullString
+	var oauthID sql.NullString
+	var email sql.NullString
 
 	err := s.db.QueryRow(
-		"SELECT password_hash, roles, active, locked_until FROM users WHERE username = $1",
+		"SELECT password_hash, roles, active, locked_until, oauth_provider, oauth_id, email FROM users WHERE username = $1",
 		username,
-	).Scan(&passwordHash, &rolesJSON, &active, &lockedUntil)
+	).Scan(&passwordHash, &rolesJSON, &active, &lockedUntil, &oauthProvider, &oauthID, &email)
 
 	if err == sql.ErrNoRows {
 		return nil, errors.New("user not found")
@@ -142,9 +171,18 @@ func (s *DBUserStore) GetUser(username string) (*User, error) {
 
 	user := &User{
 		Username:     username,
-		PasswordHash: passwordHash,
+		PasswordHash: passwordHash.String,
 		Roles:        roles,
 		Active:       active,
+	}
+	if oauthProvider.Valid {
+		user.OAuthProvider = oauthProvider.String
+	}
+	if oauthID.Valid {
+		user.OAuthID = oauthID.String
+	}
+	if email.Valid {
+		user.Email = email.String
 	}
 
 	// Cache user
@@ -276,14 +314,17 @@ func (s *DBUserStore) AddUser(user *User) error {
 	}
 
 	_, err = s.db.Exec(`
-		INSERT INTO users (username, password_hash, roles, active)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (username, password_hash, roles, active, oauth_provider, oauth_id, email)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (username) DO UPDATE SET
-			password_hash = EXCLUDED.password_hash,
+			password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
 			roles = EXCLUDED.roles,
 			active = EXCLUDED.active,
+			oauth_provider = COALESCE(EXCLUDED.oauth_provider, users.oauth_provider),
+			oauth_id = COALESCE(EXCLUDED.oauth_id, users.oauth_id),
+			email = COALESCE(EXCLUDED.email, users.email),
 			updated_at = CURRENT_TIMESTAMP
-	`, user.Username, user.PasswordHash, rolesJSON, user.Active)
+	`, user.Username, user.PasswordHash, rolesJSON, user.Active, user.OAuthProvider, user.OAuthID, user.Email)
 
 	if err != nil {
 		return fmt.Errorf("database error: %w", err)
@@ -320,6 +361,187 @@ func (s *DBUserStore) IsSetupRequired() (bool, error) {
 		return false, fmt.Errorf("failed to check setup status: %w", err)
 	}
 	return count == 0, nil
+}
+
+// GetUserByOAuth retrieves a user by OAuth provider and ID
+func (s *DBUserStore) GetUserByOAuth(provider, oauthID string) (*User, error) {
+	var username string
+	var passwordHash sql.NullString
+	var rolesJSON []byte
+	var active bool
+	var email sql.NullString
+
+	err := s.db.QueryRow(
+		"SELECT username, password_hash, roles, active, email FROM users WHERE oauth_provider = $1 AND oauth_id = $2",
+		provider, oauthID,
+	).Scan(&username, &passwordHash, &rolesJSON, &active, &email)
+
+	if err == sql.ErrNoRows {
+		return nil, errors.New("user not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	if !active {
+		return nil, errors.New("user is inactive")
+	}
+
+	var roles []string
+	if err := json.Unmarshal(rolesJSON, &roles); err != nil {
+		s.logger.Warn("failed to parse roles", zap.String("username", username), zap.Error(err))
+		roles = []string{}
+	}
+
+	user := &User{
+		Username:      username,
+		PasswordHash:  passwordHash.String,
+		Roles:         roles,
+		Active:        active,
+		OAuthProvider: provider,
+		OAuthID:       oauthID,
+	}
+	if email.Valid {
+		user.Email = email.String
+	}
+
+	return user, nil
+}
+
+// GetUserByEmail retrieves a user by email
+func (s *DBUserStore) GetUserByEmail(email string) (*User, error) {
+	var username string
+	var passwordHash sql.NullString
+	var rolesJSON []byte
+	var active bool
+	var oauthProvider sql.NullString
+	var oauthID sql.NullString
+
+	err := s.db.QueryRow(
+		"SELECT username, password_hash, roles, active, oauth_provider, oauth_id FROM users WHERE email = $1",
+		email,
+	).Scan(&username, &passwordHash, &rolesJSON, &active, &oauthProvider, &oauthID)
+
+	if err == sql.ErrNoRows {
+		return nil, errors.New("user not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	if !active {
+		return nil, errors.New("user is inactive")
+	}
+
+	var roles []string
+	if err := json.Unmarshal(rolesJSON, &roles); err != nil {
+		s.logger.Warn("failed to parse roles", zap.String("username", username), zap.Error(err))
+		roles = []string{}
+	}
+
+	user := &User{
+		Username:     username,
+		PasswordHash: passwordHash.String,
+		Roles:        roles,
+		Active:       active,
+		Email:        email,
+	}
+	if oauthProvider.Valid {
+		user.OAuthProvider = oauthProvider.String
+	}
+	if oauthID.Valid {
+		user.OAuthID = oauthID.String
+	}
+
+	return user, nil
+}
+
+// CreateOrUpdateOAuthUser creates or updates a user from OAuth info
+func (s *DBUserStore) CreateOrUpdateOAuthUser(oauthInfo *OAuthUserInfo) (*User, error) {
+	// Try to find existing user by OAuth provider/ID
+	user, err := s.GetUserByOAuth(string(oauthInfo.Provider), oauthInfo.ID)
+	if err == nil {
+		// User exists, update email if needed
+		if oauthInfo.Email != "" && user.Email != oauthInfo.Email {
+			_, updateErr := s.db.Exec(
+				"UPDATE users SET email = $1, updated_at = CURRENT_TIMESTAMP WHERE username = $2",
+				oauthInfo.Email, user.Username,
+			)
+			if updateErr != nil {
+				s.logger.Warn("failed to update email", zap.String("username", user.Username), zap.Error(updateErr))
+			} else {
+				user.Email = oauthInfo.Email
+			}
+		}
+		// Update last login
+		s.recordSuccessfulLogin(user.Username)
+		return user, nil
+	}
+
+	// Try to find by email to link accounts
+	if oauthInfo.Email != "" {
+		existingUser, emailErr := s.GetUserByEmail(oauthInfo.Email)
+		if emailErr == nil {
+			// Link OAuth to existing account
+			_, linkErr := s.db.Exec(
+				"UPDATE users SET oauth_provider = $1, oauth_id = $2, updated_at = CURRENT_TIMESTAMP WHERE username = $3",
+				string(oauthInfo.Provider), oauthInfo.ID, existingUser.Username,
+			)
+			if linkErr != nil {
+				s.logger.Warn("failed to link OAuth account", zap.String("username", existingUser.Username), zap.Error(linkErr))
+			} else {
+				existingUser.OAuthProvider = string(oauthInfo.Provider)
+				existingUser.OAuthID = oauthInfo.ID
+				s.recordSuccessfulLogin(existingUser.Username)
+				return existingUser, nil
+			}
+		}
+	}
+
+	// Create new user
+	// Generate username from email or name
+	username := oauthInfo.Email
+	if username == "" {
+		username = oauthInfo.Name
+	}
+	if username == "" {
+		username = fmt.Sprintf("%s_%s", oauthInfo.Provider, oauthInfo.ID)
+	}
+	// Clean username (remove @ and special chars, make lowercase)
+	username = strings.ToLower(strings.ReplaceAll(username, "@", "_"))
+	username = strings.ReplaceAll(username, " ", "_")
+	
+	// Ensure username is unique
+	baseUsername := username
+	counter := 1
+	for {
+		_, err := s.GetUser(username)
+		if err != nil {
+			break // Username is available
+		}
+		username = fmt.Sprintf("%s_%d", baseUsername, counter)
+		counter++
+	}
+
+	// Default role for new OAuth users
+	roles := []string{"viewer"}
+	
+	newUser := &User{
+		Username:      username,
+		PasswordHash:  "", // No password for OAuth users
+		Roles:         roles,
+		Active:        true,
+		OAuthProvider: string(oauthInfo.Provider),
+		OAuthID:       oauthInfo.ID,
+		Email:         oauthInfo.Email,
+	}
+
+	if err := s.AddUser(newUser); err != nil {
+		return nil, fmt.Errorf("failed to create OAuth user: %w", err)
+	}
+
+	s.recordSuccessfulLogin(newUser.Username)
+	return newUser, nil
 }
 
 // Close closes the database connection

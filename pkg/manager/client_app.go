@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sharding-system/pkg/catalog"
+	"github.com/sharding-system/pkg/validation"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 )
@@ -78,6 +79,22 @@ func (m *ClientAppManager) RegisterClientApp(ctx context.Context, name, descript
 		if keyPrefix != "" && app.KeyPrefix == keyPrefix {
 			return nil, fmt.Errorf("client application with key prefix '%s' already exists", keyPrefix)
 		}
+	}
+
+	// Validate database connection if database information is provided
+	// Applications without database cannot be registered for sharding
+	if databaseHost != "" || databaseName != "" {
+		if !validation.HasDatabaseInfo(databaseHost, databasePort, databaseName, databaseUser, databasePassword, "") {
+			return nil, fmt.Errorf("insufficient database information: host and database name are required for sharding")
+		}
+
+		// Validate database connection
+		if err := validation.ValidateDatabaseConnection(ctx, databaseHost, databasePort, databaseName, databaseUser, databasePassword, ""); err != nil {
+			return nil, fmt.Errorf("database connection validation failed: %w. Applications without a valid database connection cannot be registered for sharding", err)
+		}
+	} else {
+		// No database info provided - reject registration
+		return nil, fmt.Errorf("database connection information is required for sharding. Applications without a database cannot be registered")
 	}
 
 	app := &ClientAppInfo{
@@ -284,30 +301,11 @@ func (m *ClientAppManager) DiscoverClientApps(shardKeys []string) {
 			}
 
 			if !found {
-				app := &ClientAppInfo{
-					ID:               uuid.New().String(),
-					Name:             fmt.Sprintf("Client-%s", strings.TrimSuffix(prefix, ":")),
-					Description:      fmt.Sprintf("Auto-discovered client with prefix '%s'", prefix),
-					DatabaseName:     "",
-					DatabaseHost:     "",
-					DatabasePort:     "",
-					DatabaseUser:     "",
-					DatabasePassword: "",
-					Status:           "active",
-					CreatedAt:        time.Now(),
-					UpdatedAt:        time.Now(),
-					LastSeen:         time.Now(),
-					ShardIDs:         []string{},
-					RequestCount:     int64(count),
-					KeyPrefix:        prefix,
-				}
-				m.clientApps[app.ID] = app
-				if m.etcdClient != nil {
-					if err := m.persistClientApp(app); err != nil {
-						m.logger.Error("failed to persist auto-discovered client app", zap.Error(err))
-					}
-				}
-				m.logger.Info("auto-discovered client application", zap.String("prefix", prefix), zap.Int("requests", count))
+				// Skip auto-discovery for clients without database information
+				// Only clients with valid database connections should be registered
+				m.logger.Debug("skipping auto-discovery for client without database information",
+					zap.String("prefix", prefix),
+					zap.Int("requests", count))
 			}
 		}
 	}

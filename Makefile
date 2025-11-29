@@ -42,6 +42,10 @@ run-manager: ## Run manager service
 	@echo "Starting manager service..."
 	go run ./cmd/manager
 
+run-proxy: ## Run sharding proxy (zero-code sharding)
+	@echo "Starting sharding proxy..."
+	go run ./cmd/proxy
+
 run-frontend: ## Run frontend development server
 	@echo "Starting frontend development server..."
 	cd ui && npm run dev
@@ -105,6 +109,7 @@ docker-build: ## Build Docker images
 	@echo "Building Docker images..."
 	docker build -f Dockerfile.router -t sharding-router .
 	docker build -f Dockerfile.manager -t sharding-manager .
+	docker build -f Dockerfile.proxy -t sharding-proxy .
 
 docker-up: ## Start Docker containers
 	@echo "Starting Docker containers..."

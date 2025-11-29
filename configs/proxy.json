@@ -1,0 +1,45 @@
+{
+  "listen_addr": ":5432",
+  "admin_addr": ":8082",
+  "manager_url": "http://localhost:8081",
+  "client_apps": {
+    "ecommerce_db": {
+      "id": "ecommerce",
+      "name": "E-Commerce Application",
+      "database": "ecommerce_db",
+      "sharding_rules": [
+        {
+          "table": "users",
+          "shard_key": "user_id",
+          "strategy": "hash",
+          "description": "Shard users by user_id"
+        },
+        {
+          "table": "orders",
+          "shard_key": "customer_id",
+          "strategy": "hash",
+          "description": "Shard orders by customer_id for co-location with users"
+        },
+        {
+          "table": "order_items",
+          "shard_key": "order_id",
+          "strategy": "hash",
+          "description": "Shard order items with orders"
+        },
+        {
+          "table": "products",
+          "shard_key": "",
+          "strategy": "broadcast",
+          "description": "Replicate products to all shards (read-heavy, rarely updated)"
+        },
+        {
+          "table": "categories",
+          "shard_key": "",
+          "strategy": "broadcast",
+          "description": "Replicate categories to all shards"
+        }
+      ]
+    }
+  }
+}
+

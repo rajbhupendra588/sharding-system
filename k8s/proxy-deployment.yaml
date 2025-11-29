@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy
+  namespace: sharding-system
+  labels:
+    app: proxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: proxy
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      containers:
+      - name: proxy
+        image: sharding-proxy:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: postgres
+          containerPort: 5432
+        - name: admin
+          containerPort: 8082
+        env:
+        - name: PROXY_CONFIG_PATH
+          value: "/app/configs/proxy.json"
+        - name: PROXY_LISTEN_ADDR
+          value: ":5432"
+        - name: PROXY_ADMIN_ADDR
+          value: ":8082"
+        - name: SHARDING_MANAGER_URL
+          value: "http://manager:8081"
+        volumeMounts:
+        - name: config
+          mountPath: /app/configs
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: config
+        configMap:
+          name: sharding-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy
+  namespace: sharding-system
+spec:
+  selector:
+    app: proxy
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+  - name: admin
+    port: 8082
+    targetPort: 8082
+  type: LoadBalancer
+

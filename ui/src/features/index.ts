@@ -30,3 +30,12 @@ export type {
 
 export type { HealthResponse } from './health/types';
 
+// Multi-region exports
+export * from './multiregion';
+
+// Disaster recovery exports
+export * from './disaster-recovery';
+
+// PostgreSQL stats exports
+export * from './postgres-stats';
+

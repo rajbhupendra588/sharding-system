@@ -10,7 +10,12 @@ import {
   Menu,
   X,
   CreditCard,
-  Users
+  Users,
+  Database as DatabaseIcon,
+  Globe,
+  Shield,
+  Activity,
+  Search
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/store/auth-store';
@@ -19,7 +24,13 @@ import logo from '../assets/logo.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Databases', href: '/databases', icon: DatabaseIcon },
+  { name: 'PostgreSQL Stats', href: '/postgres-stats', icon: Activity },
+  { name: 'Cluster Scanner', href: '/cluster-scanner', icon: Search },
   { name: 'Shards', href: '/shards', icon: Database },
+  { name: 'Auto-Scale', href: '/autoscale', icon: BarChart3 },
+  { name: 'Multi-Region', href: '/multi-region', icon: Globe },
+  { name: 'Disaster Recovery', href: '/disaster-recovery', icon: Shield },
   { name: 'Client Apps', href: '/client-apps', icon: Users },
   { name: 'Query Executor', href: '/query', icon: PlayCircle },
   { name: 'Resharding', href: '/resharding', icon: GitBranch },

@@ -12,6 +12,7 @@ import (
 	"github.com/sharding-system/pkg/hashing"
 	"github.com/sharding-system/pkg/models"
 	"github.com/sharding-system/pkg/pricing"
+	"github.com/sharding-system/pkg/validation"
 	"go.uber.org/zap"
 )
 
@@ -54,49 +55,12 @@ func (m *Manager) GetPricingConfig() config.PricingConfig {
 	return m.pricingConfig
 }
 
-// InitializeClientApps discovers client applications from existing shards
+// InitializeClientApps loads existing client applications from storage
+// No auto-creation of default apps - only registered apps are shown
 func (m *Manager) InitializeClientApps() error {
-	// Get all shards
-	shards, err := m.ListShards()
-	if err != nil {
-		return fmt.Errorf("failed to list shards: %w", err)
-	}
-
-	// If we have shards but no client apps, create a default client app
-	// This helps users see that sharding is being used even if clients aren't registered
-	if len(shards) > 0 {
-		clientAppMgr := m.GetClientAppManager()
-		apps, _ := clientAppMgr.ListClientApps()
-
-		if len(apps) == 0 {
-			// Create a default client app to represent existing usage
-			defaultApp, err := clientAppMgr.RegisterClientApp(
-				context.Background(),
-				"Default Client Application",
-				fmt.Sprintf("Auto-created to represent existing shard usage (%d active shards). Register specific client applications to track them individually.", len(shards)),
-				"", // database_name - empty for default
-				"", // database_host - empty for default
-				"", // database_port - empty for default
-				"", // database_user - empty for default
-				"", // database_password - empty for default
-				"", // key_prefix - empty for default
-				"", // namespace - empty for default
-				"", // cluster_name - empty for default
-			)
-			if err != nil {
-				m.logger.Warn("failed to create default client app", zap.Error(err))
-			} else {
-				// Associate all existing shards with the default app
-				for _, shard := range shards {
-					clientAppMgr.TrackRequest("", shard.ID)
-				}
-				m.logger.Info("created default client application for existing shards",
-					zap.String("app_id", defaultApp.ID),
-					zap.Int("shard_count", len(shards)))
-			}
-		}
-	}
-
+	// Client apps are loaded from etcd in NewClientAppManager
+	// Nothing to do here - no auto-creation
+	m.logger.Info("client app manager initialized")
 	return nil
 }
 
@@ -126,16 +90,44 @@ func (m *Manager) CreateShard(ctx context.Context, req *models.CreateShardReques
 		}
 	}
 
+	// Validate database connection before creating shard
+	// Shards must have a valid database connection
+	if !validation.HasDatabaseInfo(req.Host, fmt.Sprintf("%d", req.Port), req.Database, req.Username, req.Password, req.PrimaryEndpoint) {
+		return nil, fmt.Errorf("insufficient database information: shards require a valid database connection (host, database, and either primary_endpoint or host+database)")
+	}
+
+	// Validate database connection
+	if err := validation.ValidateDatabaseConnection(ctx, req.Host, fmt.Sprintf("%d", req.Port), req.Database, req.Username, req.Password, req.PrimaryEndpoint); err != nil {
+		return nil, fmt.Errorf("database connection validation failed: %w. Shards cannot be created without a valid database connection", err)
+	}
+
+	// Determine status - but don't set to active if validation fails
+	status := req.Status
+	if status == "" {
+		// Only set to active if we have a valid database connection (already validated above)
+		status = "active"
+	} else if status == "active" {
+		// If explicitly setting to active, ensure database is still valid
+		// (already validated above, but this is a safety check)
+	}
+
 	shard := &models.Shard{
 		ID:              uuid.New().String(),
 		Name:            req.Name,
 		ClientAppID:     req.ClientAppID,
 		PrimaryEndpoint: req.PrimaryEndpoint,
 		Replicas:        req.Replicas,
-		Status:          "active",
+		Status:          status,
 		Version:         1,
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
+		// Database connection details
+		Host:     req.Host,
+		Port:     req.Port,
+		Database: req.Database,
+		Username: req.Username,
+		Password: req.Password,
+		Weight:   req.Weight,
 	}
 
 	// Generate VNodes
@@ -191,6 +183,61 @@ func (m *Manager) DeleteShard(shardID string) error {
 	}
 
 	return m.catalog.DeleteShard(shardID)
+}
+
+// UpdateShardStatus updates the status of a shard
+func (m *Manager) UpdateShardStatus(shardID string, status string) error {
+	shard, err := m.catalog.GetShardByID(shardID)
+	if err != nil {
+		return err
+	}
+
+	// If setting status to "active", validate database connection first
+	if status == "active" {
+		// Build DSN from shard connection details
+		dsn := ""
+		if shard.PrimaryEndpoint != "" {
+			dsn = shard.PrimaryEndpoint
+		} else if shard.Host != "" && shard.Database != "" {
+			port := shard.Port
+			if port == 0 {
+				port = 5432
+			}
+			dsn = fmt.Sprintf("host=%s port=%d dbname=%s", shard.Host, port, shard.Database)
+			if shard.Username != "" {
+				dsn += fmt.Sprintf(" user=%s", shard.Username)
+			}
+			if shard.Password != "" {
+				dsn += fmt.Sprintf(" password=%s", shard.Password)
+			}
+			dsn += " sslmode=prefer connect_timeout=10"
+		}
+
+		if dsn == "" {
+			return fmt.Errorf("cannot set shard status to active: shard has no valid database connection information")
+		}
+
+		// Validate database connection
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := validation.ValidateDatabaseConnection(ctx, shard.Host, fmt.Sprintf("%d", shard.Port), shard.Database, shard.Username, shard.Password, shard.PrimaryEndpoint); err != nil {
+			return fmt.Errorf("cannot set shard status to active: database connection validation failed: %w", err)
+		}
+	}
+
+	shard.Status = status
+	shard.UpdatedAt = time.Now()
+
+	if err := m.catalog.UpdateShard(shard); err != nil {
+		return fmt.Errorf("failed to update shard status: %w", err)
+	}
+
+	m.logger.Info("updated shard status",
+		zap.String("shard_id", shardID),
+		zap.String("status", status),
+	)
+
+	return nil
 }
 
 // SplitShard starts a split operation

@@ -1,0 +1,144 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: manager-vs
+  namespace: sharding-system
+spec:
+  hosts:
+    - manager
+    - api.sharding.example.com
+  gateways:
+    - sharding-gateway
+    - mesh
+  http:
+    - match:
+        - uri:
+            prefix: /api/v1
+      route:
+        - destination:
+            host: manager
+            port:
+              number: 8081
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: gateway-error,connect-failure,refused-stream
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: router-vs
+  namespace: sharding-system
+spec:
+  hosts:
+    - router
+  gateways:
+    - mesh
+  http:
+    - route:
+        - destination:
+            host: router
+            port:
+              number: 8080
+      timeout: 60s
+      retries:
+        attempts: 3
+        perTryTimeout: 20s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: sharding-gateway
+  namespace: sharding-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*.sharding.example.com"
+      tls:
+        mode: SIMPLE
+        credentialName: sharding-tls-secret
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: manager-dr
+  namespace: sharding-system
+spec:
+  host: manager
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: UPGRADE
+        http2MaxRequests: 1000
+        maxRetries: 3
+    loadBalancer:
+      simple: ROUND_ROBIN
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 60s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: router-dr
+  namespace: sharding-system
+spec:
+  host: router
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+      http:
+        http2MaxRequests: 5000
+        maxRetries: 3
+    loadBalancer:
+      simple: LEAST_REQUEST
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: sharding-system
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: manager-authz
+  namespace: sharding-system
+spec:
+  selector:
+    matchLabels:
+      app: manager
+  rules:
+    - from:
+        - source:
+            namespaces: ["default", "application", "sharding-system"]
+      to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "DELETE"]
+            paths: ["/api/v1/*"]
+    - from:
+        - source:
+            namespaces: ["monitoring"]
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/metrics", "/health"]
+

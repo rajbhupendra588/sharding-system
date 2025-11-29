@@ -15,8 +15,8 @@ data:
       },
       "metadata": {
         "type": "etcd",
-        "endpoints": ["etcd-0.etcd:2379", "etcd-1.etcd:2379", "etcd-2.etcd:2379"],
-        "timeout": "5s"
+        "endpoints": ["etcd.sharding-system.svc.cluster.local:2379"],
+        "timeout": "30s"
       },
       "sharding": {
         "strategy": "hash",
@@ -47,8 +47,8 @@ data:
       },
       "metadata": {
         "type": "etcd",
-        "endpoints": ["etcd-0.etcd:2379", "etcd-1.etcd:2379", "etcd-2.etcd:2379"],
-        "timeout": "5s"
+        "endpoints": ["etcd.sharding-system.svc.cluster.local:2379"],
+        "timeout": "30s"
       },
       "sharding": {
         "strategy": "hash",
@@ -67,6 +67,103 @@ data:
         "metrics_port": 9091,
         "enable_tracing": false,
         "log_level": "info"
+      }
+    }
+  proxy.json: |
+    {
+      "listen_addr": ":5432",
+      "admin_addr": ":8082",
+      "manager_url": "http://manager:8081",
+      "client_apps": {
+        "ecommerce_db": {
+          "id": "ecommerce",
+          "name": "E-Commerce Application",
+          "database": "ecommerce_db",
+          "sharding_rules": [
+            {
+              "table": "users",
+              "shard_key": "user_id",
+              "strategy": "hash",
+              "description": "Shard users by user_id"
+            },
+            {
+              "table": "orders",
+              "shard_key": "customer_id",
+              "strategy": "hash",
+              "description": "Shard orders by customer_id for co-location with users"
+            },
+            {
+              "table": "order_items",
+              "shard_key": "order_id",
+              "strategy": "hash",
+              "description": "Shard order items with orders"
+            },
+            {
+              "table": "products",
+              "shard_key": "",
+              "strategy": "broadcast",
+              "description": "Replicate products to all shards (read-heavy, rarely updated)"
+            },
+            {
+              "table": "categories",
+              "shard_key": "",
+              "strategy": "broadcast",
+              "description": "Replicate categories to all shards"
+            }
+          ]
+        },
+        "products_db": {
+          "id": "products",
+          "name": "Products Application",
+          "database": "products_db",
+          "sharding_rules": [
+            {
+              "table": "products",
+              "shard_key": "product_id",
+              "strategy": "hash",
+              "description": "Shard products by product_id"
+            }
+          ]
+        },
+        "users_db": {
+          "id": "users",
+          "name": "Users Application",
+          "database": "users_db",
+          "sharding_rules": [
+            {
+              "table": "users",
+              "shard_key": "user_id",
+              "strategy": "hash",
+              "description": "Shard users by user_id"
+            }
+          ]
+        },
+        "orders_db": {
+          "id": "orders",
+          "name": "Orders Application",
+          "database": "orders_db",
+          "sharding_rules": [
+            {
+              "table": "orders",
+              "shard_key": "order_id",
+              "strategy": "hash",
+              "description": "Shard orders by order_id"
+            }
+          ]
+        },
+        "inventory_db": {
+          "id": "inventory",
+          "name": "Inventory Application",
+          "database": "inventory_db",
+          "sharding_rules": [
+            {
+              "table": "inventory",
+              "shard_key": "product_id",
+              "strategy": "hash",
+              "description": "Shard inventory by product_id"
+            }
+          ]
+        }
       }
     }
 

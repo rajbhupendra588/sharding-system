@@ -1,4 +1,4 @@
-bin/
+# bin/  # Commented out to allow pre-built binaries
 *.log
 .git/
 .gitignore
@@ -9,7 +9,8 @@ bin/
 *~
 .DS_Store
 examples/
-docs/
+docs/*
+!docs/swagger/
 *.md
 !README.md
 

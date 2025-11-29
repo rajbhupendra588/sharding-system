@@ -1,0 +1,12 @@
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /root/
+
+COPY manager .
+COPY configs ./configs
+
+EXPOSE 8081 9091
+
+CMD ["./manager"]
+

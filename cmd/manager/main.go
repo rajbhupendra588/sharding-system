@@ -77,7 +77,7 @@ func main() {
 	go healthController.Start(healthCtx)
 
 	// Create and start server
-	srv, err := server.NewManagerServer(cfg, shardManager, healthController, logger)
+	srv, err := server.NewManagerServer(cfg, shardManager, healthController, cat, logger)
 	if err != nil {
 		logger.Fatal("failed to create server", zap.Error(err))
 	}

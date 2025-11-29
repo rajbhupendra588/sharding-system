@@ -1,15 +1,22 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
+
+# Install git for go mod download
+RUN apk add --no-cache git
+
+# Set GOTOOLCHAIN to auto to download required Go version
+ENV GOTOOLCHAIN=auto
 
 # Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
+# Copy source code (including docs if they exist)
 COPY . .
 
-# Build the manager
+# Build the manager (swagger docs are local modules, so they should be available)
+ENV GOTOOLCHAIN=auto
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bin/manager ./cmd/manager
 
 # Final stage

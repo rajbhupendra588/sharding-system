@@ -1,0 +1,17 @@
+FROM alpine:3.18
+
+RUN apk --no-cache add ca-certificates
+WORKDIR /app
+
+COPY ./bin/proxy .
+COPY configs/proxy.json ./configs/
+
+EXPOSE 5432 8082
+
+ENV PROXY_CONFIG_PATH=/app/configs/proxy.json
+ENV PROXY_LISTEN_ADDR=:5432
+ENV PROXY_ADMIN_ADDR=:8082
+ENV SHARDING_MANAGER_URL=http://manager:8081
+
+CMD ["./proxy"]
+

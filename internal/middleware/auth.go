@@ -12,6 +12,12 @@ import (
 func AuthMiddleware(authManager *security.AuthManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip auth for OPTIONS requests (CORS preflight)
+			if r.Method == "OPTIONS" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			// Skip auth for public endpoints
 			publicPaths := []string{
 				"/health",

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title?: string;
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   footer?: ReactNode;
@@ -48,19 +48,29 @@ export default function Modal({
         />
 
         <div className={cn(
-          'inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle w-full',
+          'inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle w-full relative',
           sizes[size]
         )}>
           <div className="bg-white dark:bg-gray-800 px-6 pt-5 pb-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+            {title && (
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            )}
+            {!title && (
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-500 focus:outline-none"
               >
                 <X className="h-6 w-6" />
               </button>
-            </div>
+            )}
             <div>{children}</div>
           </div>
           {footer && (

@@ -7,4 +7,4 @@
 
 ## Requirements
 -   **SaaS**: Internet connection.
--   **Self-Hosted**: See [Deployment Guide](../dev/DEPLOYMENT_GUIDE.md).
+-   **Self-Hosted**: See [Deployment Guide](../deployment/DEPLOYMENT_GUIDE.md).

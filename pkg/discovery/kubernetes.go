@@ -69,6 +69,20 @@ func NewKubernetesDiscovery(logger *zap.Logger, registeredAppNames []string) (*K
 	}, nil
 }
 
+// NewKubernetesDiscoveryFromClient creates a new Kubernetes discovery service from an existing client
+func NewKubernetesDiscoveryFromClient(client *kubernetes.Clientset, logger *zap.Logger, registeredAppNames []string) (*KubernetesDiscovery, error) {
+	registeredMap := make(map[string]bool)
+	for _, name := range registeredAppNames {
+		registeredMap[name] = true
+	}
+
+	return &KubernetesDiscovery{
+		client:         client,
+		logger:         logger,
+		registeredApps: registeredMap,
+	}, nil
+}
+
 // DiscoverApplications discovers all applications in Kubernetes namespaces
 func (k *KubernetesDiscovery) DiscoverApplications(ctx context.Context) ([]DiscoveredApp, error) {
 	// Initialize as empty slice (not nil) to ensure JSON encoding produces [] not null

@@ -33,7 +33,7 @@ Welcome to the User Guide for the Sharding System. This document provides compre
 
 2. **Access the Web UI**
    - Open `http://localhost:3000` in your browser
-   - Default credentials may be required (check deployment guide)
+   - Default credentials may be required (check [Deployment Guide](../deployment/DEPLOYMENT_GUIDE.md))
 
 3. **Verify Services**
    - Manager: `http://localhost:8081/health`

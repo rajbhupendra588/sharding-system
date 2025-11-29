@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payment-cluster-4
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: payment-db-secret
+  namespace: payment-cluster-4
+type: Opaque
+stringData:
+  postgres-password: postgres123
+  postgres-user: postgres
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-app-config
+  namespace: payment-cluster-4
+data:
+  DB_HOST: payment-postgres
+  DB_PORT: "5432"
+  DB_NAME: payment_db
+  DB_USER: postgres
+  PORT: "8080"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: payment-postgres
+  namespace: payment-cluster-4
+spec:
+  serviceName: payment-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-postgres
+  template:
+    metadata:
+      labels:
+        app: payment-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_DB
+          value: payment_db
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: payment-db-secret
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: payment-db-secret
+              key: postgres-password
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-postgres
+  namespace: payment-cluster-4
+spec:
+  selector:
+    app: payment-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: payment-cluster-4
+  labels:
+    app: payment-service
+    database: payment_db
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        database: payment_db
+      annotations:
+        database.host: payment-postgres
+        database.port: "5432"
+        database.name: payment_db
+        database.user: postgres
+    spec:
+      containers:
+      - name: app
+        image: java-app-1:latest
+        envFrom:
+        - configMapRef:
+            name: payment-app-config
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: payment-db-secret
+              key: postgres-password
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "400m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: payment-cluster-4
+spec:
+  selector:
+    app: payment-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+

@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: users-ns
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: users-db-secret
+  namespace: users-ns
+type: Opaque
+stringData:
+  postgres-password: postgres123
+  postgres-user: postgres
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: users-db-config
+  namespace: users-ns
+data:
+  POSTGRES_DB: users_db
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: users-postgres
+  namespace: users-ns
+spec:
+  serviceName: users-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: users-postgres
+  template:
+    metadata:
+      labels:
+        app: users-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: users-db-secret
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: users-db-secret
+              key: postgres-password
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: users-db-config
+              key: POSTGRES_DB
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: users-postgres
+  namespace: users-ns
+spec:
+  selector:
+    app: users-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-app
+  namespace: users-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: users-app
+  template:
+    metadata:
+      labels:
+        app: users-app
+    spec:
+      containers:
+      - name: app
+        image: users-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        - name: DB_HOST
+          value: users-postgres.users-ns.svc.cluster.local
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: users-db-secret
+              key: postgres-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: users-db-secret
+              key: postgres-password
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: users-db-config
+              key: POSTGRES_DB
+        - name: DATABASE_URL
+          value: postgres://postgres:postgres123@users-postgres.users-ns.svc.cluster.local:5432/users_db
+        - name: DATABASE_HOST
+          value: users-postgres.users-ns.svc.cluster.local
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_NAME
+          value: users_db
+        - name: DATABASE_USER
+          value: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: users-app
+  namespace: users-ns
+spec:
+  selector:
+    app: users-app
+  ports:
+  - port: 8080
+    targetPort: 8080
+

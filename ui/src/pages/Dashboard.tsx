@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Database, Activity, CheckCircle, Clock, CreditCard, Users, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
+import { Database, Activity, CheckCircle, Clock, CreditCard, Users, BarChart3, PieChart as PieChartIcon, Database as DatabaseIcon } from 'lucide-react';
 import { useShards } from '@/features/shard';
 import { useSystemHealth } from '@/features/health';
 import { useClientApps } from '@/features/clientApp';
+import { useDatabases, useFailoverStatus } from '@/features/database';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { formatRelativeTime } from '@/shared/utils';
@@ -22,6 +23,8 @@ export default function Dashboard() {
   const { data: shards, isLoading: shardsLoading } = useShards();
   const { isHealthy } = useSystemHealth();
   const { data: clientApps } = useClientApps();
+  const { data: databases } = useDatabases();
+  useFailoverStatus();
   const [pricingLimits, setPricingLimits] = useState<PricingLimits | null>(null);
 
   useEffect(() => {
@@ -42,8 +45,19 @@ export default function Dashboard() {
   const activeShards = shards?.filter((s) => s.status === 'active') || [];
   const totalShards = shards?.length || 0;
   const totalClientApps = clientApps?.length || 0;
+  const totalDatabases = databases?.length || 0;
+  const readyDatabases = databases?.filter((db) => db.status === 'ready').length || 0;
 
   const stats = [
+    {
+      name: 'Databases',
+      value: `${readyDatabases}/${totalDatabases}`,
+      icon: DatabaseIcon,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      link: '/databases',
+      description: 'Sharded databases',
+    },
     {
       name: 'Current Plan',
       value: pricingLimits ? pricingLimits.Name : 'Loading...',
@@ -94,7 +108,7 @@ export default function Dashboard() {
           {pricingLimits && pricingLimits.Name !== 'Enterprise' && (
             <Link
               to="/pricing"
-              className="btn btn-primary text-sm py-1.5 px-3"
+              className="btn btn-primary text-sm py-1.5 px-3 w-full sm:w-auto text-center"
             >
               Upgrade Plan
             </Link>

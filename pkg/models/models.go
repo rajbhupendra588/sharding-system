@@ -18,6 +18,14 @@ type Shard struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	VNodes          []VNode   `json:"vnodes,omitempty"`
+
+	// Database connection details
+	Host     string `json:"host,omitempty"`
+	Port     int    `json:"port,omitempty"`
+	Database string `json:"database,omitempty"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"` // In production, use secrets management
+	Weight   int    `json:"weight,omitempty"`   // Load balancing weight
 }
 
 // VNode represents a virtual node in consistent hashing
@@ -84,6 +92,15 @@ type CreateShardRequest struct {
 	PrimaryEndpoint string   `json:"primary_endpoint"`
 	Replicas        []string `json:"replicas"`
 	VNodeCount      int      `json:"vnode_count"`
+
+	// Database connection details
+	Host     string `json:"host,omitempty"`
+	Port     int    `json:"port,omitempty"`
+	Database string `json:"database,omitempty"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Weight   int    `json:"weight,omitempty"`
+	Status   string `json:"status,omitempty"`
 }
 
 // SplitRequest represents a request to split a shard
